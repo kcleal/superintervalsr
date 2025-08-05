@@ -24,5 +24,5 @@ im <- IntervalMap()
 add(im, 1, 10, "gene1")
 add(im, 5, 15, "gene2")
 build(im)
-coverage(im, 1, 20)
+coverage(im, 1, 20)  # Returns list with coverage statistics
 }

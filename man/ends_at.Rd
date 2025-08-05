@@ -13,7 +13,15 @@ ends_at(x, idx)
 }
 \value{
 End position
+
+Integer end position of the interval
 }
 \description{
 Get end position at specific index
+}
+\examples{
+im <- IntervalMap()
+add(im, 1, 10, "gene1")
+build(im)
+ends_at(im, 1)  # Returns 10
 }

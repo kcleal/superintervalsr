@@ -30,6 +30,15 @@ library(superintervalsr)
 
 ```{r basic}
 # Create a new IntervalMap
+imap <- IntervalMap(c(10, 15, 30),
+                    ends = c(20, 25, 40),
+                    values = c("Gene A", "Gene B", "Gene C"))
+```
+
+Alternatively data can be added sequentially, followed by calling `build()`:
+
+```{r basic_sequential}
+# Create a new IntervalMap
 imap <- IntervalMap()
 
 # Add some intervals with associated values
@@ -40,8 +49,6 @@ add(imap, 30, 40, "Gene C")
 # Build the index (required before queries)
 build(imap)
 
-# View the IntervalMap
-print(imap)
 ```
 
 ### Searching for Overlaps
@@ -58,6 +65,10 @@ print(keys)
 # Get complete information (start, end, value)
 items <- search_items(imap, 12, 18)
 print(items)
+
+# Find all indices that overlap with range 12-18
+indices <- search_idxs(imap, 12, 18)
+print(indices)
 ```
 
 ### Query Statistics

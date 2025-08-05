@@ -13,7 +13,13 @@ reserve(x, n)
 }
 \value{
 The IntervalMap object (invisibly)
+
+The IntervalMap object (invisibly)
 }
 \description{
 Reserve space for intervals
+}
+\examples{
+im <- IntervalMap()
+reserve(im, 1000)  # Pre-allocate space for 1000 intervals
 }

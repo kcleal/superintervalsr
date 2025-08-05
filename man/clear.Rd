@@ -11,7 +11,14 @@ clear(x)
 }
 \value{
 The IntervalMap object (invisibly)
+
+The IntervalMap object (invisibly)
 }
 \description{
 Clear all intervals
+}
+\examples{
+im <- IntervalMap()
+add(im, 1, 10, "gene1")
+clear(im)
 }

@@ -13,7 +13,15 @@ starts_at(x, idx)
 }
 \value{
 Start position
+
+Integer start position of the interval
 }
 \description{
 Get start position at specific index
+}
+\examples{
+im <- IntervalMap()
+add(im, 1, 10, "gene1")
+build(im)
+starts_at(im, 1)  # Returns 1
 }

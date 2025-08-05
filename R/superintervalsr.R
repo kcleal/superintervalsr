@@ -7,7 +7,7 @@ NULL
 #' Creates a new IntervalMap object for storing and querying intervals efficiently.
 #' This function uses method dispatch to automatically handle different input types.
 #'
-#' @param x Input object. Can be missing (creates empty map), GRanges, or data.frame
+#' @param x Input object. Can be missing (creates empty map), GRanges, data.frame, or integer vector of starts
 #' @param ... Additional arguments passed to specific methods
 #' @return An IntervalMap object
 #' @export
@@ -23,6 +23,9 @@ NULL
 #' # Create from data.frame
 #' df <- data.frame(start = c(1, 10), end = c(5, 15), gene = c("A", "B"))
 #' im3 <- IntervalMap(df, value_column = "gene")
+#'
+#' # Create from vectors
+#' im4 <- IntervalMap(c(1, 10), ends = c(5, 15), values = c("gene1", "gene2"))
 IntervalMap <- function(x, ...) {
   if (missing(x)) {
     IntervalMap.default()
@@ -39,6 +42,48 @@ IntervalMap.default <- function(x = NULL, ...) {
   } else {
     stop("Don't know how to create IntervalMap from object of class: ", class(x)[1])
   }
+}
+
+#' @rdname IntervalMap
+#' @param ends Integer vector of end positions (when x is integer vector of starts)
+#' @param values Optional list of values to associate with each interval
+#' @export
+IntervalMap.integer <- function(x, ends, values = NULL, ...) {
+  # x is treated as starts vector
+  starts <- x
+  if (missing(ends)) {
+    stop("ends parameter is required when x is an integer vector of starts")
+  }
+  if (is.null(values)) {
+    values <- list()
+  }
+  im <- create_intervalmap_from_vectors(
+    as.integer(starts),
+    as.integer(ends),
+    as.list(values)
+  )
+  structure(im, class = "IntervalMap")
+}
+
+#' @rdname IntervalMap
+#' @param ends Integer vector of end positions (when x is numeric vector of starts)
+#' @param values Optional list of values to associate with each interval
+#' @export
+IntervalMap.numeric <- function(x, ends, values = NULL, ...) {
+  # x is treated as starts vector, convert to integer
+  starts <- as.integer(x)
+  if (missing(ends)) {
+    stop("ends parameter is required when x is a numeric vector of starts")
+  }
+  if (is.null(values)) {
+    values <- list()
+  }
+  im <- create_intervalmap_from_vectors(
+    starts,
+    as.integer(ends),
+    as.list(values)
+  )
+  structure(im, class = "IntervalMap")
 }
 
 #' @rdname IntervalMap
@@ -74,7 +119,13 @@ IntervalMap.GRanges <- function(x, value_column = NULL, seqname = NULL, ...) {
   } else {
     values <- list()
   }
-  IntervalMap.from_vectors(starts, ends, values)
+
+  im <- create_intervalmap_from_vectors(
+    as.integer(starts),
+    as.integer(ends),
+    as.list(values)
+  )
+  structure(im, class = "IntervalMap")
 }
 
 #' @rdname IntervalMap
@@ -109,7 +160,13 @@ IntervalMap.data.frame <- function(x, start_column = "start", end_column = "end"
       values <- list()
     }
   }
-  IntervalMap.from_vectors(starts, ends, values)
+
+  im <- create_intervalmap_from_vectors(
+    starts,
+    ends,
+    as.list(values)
+  )
+  structure(im, class = "IntervalMap")
 }
 
 #' Convert IntervalMap items result back to GRanges
@@ -121,6 +178,14 @@ IntervalMap.data.frame <- function(x, start_column = "start", end_column = "end"
 #' @param valuename Value name to assign (default: "value")
 #' @return GRanges object
 #' @export
+#' @examples
+#' # Create an IntervalMap and search for items
+#' im <- IntervalMap(c(1, 10), ends = c(5, 15), values = c("gene1", "gene2"))
+#' items <- search_items(im, 3, 12)
+#'
+#' # Convert result back to GRanges
+#' gr <- as_granges(items, seqname = "chr1", valuename = "gene_id")
+#' print(gr)
 as_granges <- function(items_result, seqname = "chr1", valuename = "value") {
   if (!requireNamespace("GenomicRanges", quietly = TRUE)) {
     stop("GenomicRanges package required for this functionality")
@@ -146,33 +211,6 @@ as_granges <- function(items_result, seqname = "chr1", valuename = "value") {
   gr
 }
 
-#' Create IntervalMap from vectors
-#'
-#' Creates a new IntervalMap object from vectors of start positions, end positions,
-#' and optional values. The resulting IntervalMap is ready to use (no need to call build() afterwards).
-#'
-#' @param starts Integer vector of start positions (inclusive)
-#' @param ends Integer vector of end positions (inclusive)
-#' @param values Optional list of values to associate with each interval. If NULL, no values are stored.
-#' @return An IntervalMap object
-#' @export
-#' @examples
-#' # Create with values
-#' im <- IntervalMap.from_vectors(c(1, 10), c(5, 15), c("gene1", "gene2"))
-#'
-#' # Create without values
-#' im2 <- IntervalMap.from_vectors(c(1, 10), c(5, 15))
-IntervalMap.from_vectors <- function(starts, ends, values = NULL) {
-    if (is.null(values)) {
-        values <- list()
-    }
-    im <- create_intervalmap_from_vectors(
-        as.integer(starts),
-        as.integer(ends),
-        as.list(values)
-    )
-    structure(im, class = "IntervalMap")
-}
 
 #' Get the length of an IntervalMap
 #'

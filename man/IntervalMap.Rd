@@ -3,6 +3,8 @@
 \name{IntervalMap}
 \alias{IntervalMap}
 \alias{IntervalMap.default}
+\alias{IntervalMap.integer}
+\alias{IntervalMap.numeric}
 \alias{IntervalMap.GRanges}
 \alias{IntervalMap.data.frame}
 \title{Create a new IntervalMap}
@@ -10,6 +12,10 @@
 IntervalMap(x, ...)
 
 \method{IntervalMap}{default}(x = NULL, ...)
+
+\method{IntervalMap}{integer}(x, ends, values = NULL, ...)
+
+\method{IntervalMap}{numeric}(x, ends, values = NULL, ...)
 
 \method{IntervalMap}{GRanges}(x, value_column = NULL, seqname = NULL, ...)
 
@@ -22,9 +28,13 @@ IntervalMap(x, ...)
 )
 }
 \arguments{
-\item{x}{Input object. Can be missing (creates empty map), GRanges, or data.frame}
+\item{x}{Input object. Can be missing (creates empty map), GRanges, data.frame, or integer vector of starts}
 
 \item{...}{Additional arguments passed to specific methods}
+
+\item{ends}{Integer vector of end positions (when x is numeric vector of starts)}
+
+\item{values}{Optional list of values to associate with each interval}
 
 \item{value_column}{Name of column to use as values (default: use all other columns as named list)}
 
@@ -53,4 +63,7 @@ im2 <- IntervalMap(gr, value_column = "gene_id")
 # Create from data.frame
 df <- data.frame(start = c(1, 10), end = c(5, 15), gene = c("A", "B"))
 im3 <- IntervalMap(df, value_column = "gene")
+
+# Create from vectors
+im4 <- IntervalMap(c(1, 10), ends = c(5, 15), values = c("gene1", "gene2"))
 }

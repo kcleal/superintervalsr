@@ -13,7 +13,15 @@ data_at(x, idx)
 }
 \value{
 Associated data value
+
+Associated data value at the specified index
 }
 \description{
 Get data at specific index
+}
+\examples{
+im <- IntervalMap()
+add(im, 1, 10, "gene1")
+build(im)
+data_at(im, 1)  # Returns "gene1"
 }

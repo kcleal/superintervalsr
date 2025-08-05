@@ -1,7 +1,7 @@
 Package: superintervalsr
 Type: Package
 Title: Fast, Memory-Efficient Interval Operations for Genomics
-Version: 0.99.1
+Version: 0.99.2
 Date: 2025-06-09
 Authors@R: person("Kez", "Cleal",
                   email = "clealk@cardiff.ac.uk",
@@ -17,7 +17,7 @@ URL: https://github.com/kcleal/superintervalsr
 BugReports: https://github.com/kcleal/superintervalsr/issues
 biocViews: Infrastructure, DataRepresentation, GenomeAnnotation,
            Genetics, Preprocessing, Software, Sequencing
-Depends: R (>= 4.5.0)
+Depends: R (>= 4.3.0)
 Imports:
     Rcpp (>= 1.0.0)
 LinkingTo: Rcpp

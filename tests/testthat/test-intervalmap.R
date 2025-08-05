@@ -214,13 +214,13 @@ test_that("Print method works", {
 })
 
 
-test_that("IntervalMap.from_vectors works with all parameters", {
+test_that("IntervalMap from vectors works with all parameters", {
   # Test with starts, ends, and values
   starts <- c(1, 10, 20)
   ends <- c(5, 15, 25)
   values <- c("A", "B", "C")
 
-  imap <- IntervalMap.from_vectors(starts, ends, values)
+  imap <- IntervalMap(starts, ends, values)
   expect_s3_class(imap, "IntervalMap")
   expect_equal(length(imap), 3)
 
@@ -241,12 +241,12 @@ test_that("IntervalMap.from_vectors works with all parameters", {
   expect_equal(interval3$value, "C")
 })
 
-test_that("IntervalMap.from_vectors works without values", {
+test_that("IntervalMap from vectors works without values", {
   # Test with just starts and ends (no values)
   starts <- c(1, 10, 20)
   ends <- c(5, 15, 25)
 
-  imap <- IntervalMap.from_vectors(starts, ends)
+  imap <- IntervalMap(starts, ends)
   expect_s3_class(imap, "IntervalMap")
   expect_equal(length(imap), 3)
 
@@ -262,7 +262,7 @@ test_that("IntervalMap.from_vectors works without values", {
   expect_null(interval2$value)
 })
 
-test_that("IntervalMap.from_vectors works with complex values", {
+test_that("IntervalMap from vectors works with complex values", {
   # Test with complex data types as values
   starts <- c(1, 10)
   ends <- c(5, 15)
@@ -271,7 +271,7 @@ test_that("IntervalMap.from_vectors works with complex values", {
     data.frame(id = 1:2, name = c("A", "B"))
   )
 
-  imap <- IntervalMap.from_vectors(starts, ends, values)
+  imap <- IntervalMap(starts, ends, values)
   expect_equal(length(imap), 2)
 
   interval1 <- at(imap, 1)
@@ -283,14 +283,14 @@ test_that("IntervalMap.from_vectors works with complex values", {
   expect_equal(nrow(interval2$value), 2)
 })
 
-test_that("IntervalMap.from_vectors handles empty inputs", {
+test_that("IntervalMap from vectors handles empty inputs", {
   # Test with empty vectors
-  imap <- IntervalMap.from_vectors(integer(0), integer(0))
+  imap <- IntervalMap(integer(0), integer(0))
   expect_s3_class(imap, "IntervalMap")
   expect_equal(length(imap), 0)
 
   # Test with empty vectors but with values parameter
-  imap2 <- IntervalMap.from_vectors(integer(0), integer(0), list())
+  imap2 <- IntervalMap(integer(0), integer(0), list())
   expect_s3_class(imap2, "IntervalMap")
   expect_equal(length(imap2), 0)
 })
@@ -398,7 +398,7 @@ test_that("Batch functions work with large datasets", {
   ends <- starts + 50
   values <- paste0("interval_", 1:n_intervals)
 
-  imap <- IntervalMap.from_vectors(as.integer(starts), as.integer(ends), values)
+  imap <- IntervalMap(as.integer(starts), as.integer(ends), values)
   expect_equal(length(imap), n_intervals)
 
   # Test batch operations on larger dataset
@@ -422,13 +422,13 @@ test_that("Batch functions work with large datasets", {
   }
 })
 
-test_that("Integration test: from_vectors with batch operations", {
-  # Create IntervalMap using from_vectors
+test_that("Integration test: from vectors with batch operations", {
+  # Create IntervalMap using from vectors
   starts <- c(1, 10, 20, 30, 40)
   ends <- c(8, 18, 28, 38, 48)
   values <- c("A", "B", "C", "D", "E")
 
-  imap <- IntervalMap.from_vectors(starts, ends, values)
+  imap <- IntervalMap(starts, ends, values)
 
   # Test that it works with batch operations without needing build()
   query_starts <- c(5, 15, 25, 35)
@@ -470,8 +470,8 @@ test_that("Type conversion works correctly", {
   expect_equal(counts[1], 2)
   expect_equal(counts[2], 2)
 
-  # Test from_vectors with doubles
-  imap2 <- IntervalMap.from_vectors(c(1.0, 10.0), c(5.0, 15.0), c("X", "Y"))
+  # Test from vectors with doubles
+  imap2 <- IntervalMap(c(1.0, 10.0), c(5.0, 15.0), c("X", "Y"))
   expect_equal(length(imap2), 2)
   interval1 <- at(imap2, 1)
   expect_equal(interval1$start, 1)

@@ -11,7 +11,15 @@ size(x)
 }
 \value{
 Number of intervals
+
+Integer number of intervals in the map
 }
 \description{
 Get number of intervals
+}
+\examples{
+im <- IntervalMap()
+add(im, 1, 10, "gene1")
+add(im, 20, 30, "gene2")
+size(im)  # Returns 2
 }

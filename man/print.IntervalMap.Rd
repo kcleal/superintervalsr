@@ -11,6 +11,9 @@
 
 \item{...}{Additional arguments (ignored)}
 }
+\value{
+Invisibly returns the IntervalMap object
+}
 \description{
 Print method for IntervalMap
 }

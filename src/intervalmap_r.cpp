@@ -19,13 +19,13 @@ inline void release_sexp(SEXP value) {
 
 // Custom deleter for XPtr that handles SEXP cleanup
 void cleanup_intervalmap(IntervalMap<int, SEXP>* ptr) {
-    if (ptr) {
+//    if (ptr) {
         // Release all SEXP references before destruction
         for (const SEXP& value : ptr->data) {
             release_sexp(value);
         }
         delete ptr;
-    }
+//    }
 }
 
 // [[Rcpp::export]]

@@ -1,7 +1,7 @@
 # SuperIntervals
 
-The R Bioconductor package `superintervalsr` provides very fast interval intersection queries in R.
-Built on a novel superset-index approach with batch operations in mind.
+The R Bioconductor package `superintervalsr` provides fast interval intersection queries, 
+using a novel superset-lookup approach with batch operations in mind.
 
 ## Why SuperIntervals?
 
@@ -176,11 +176,11 @@ build(imap)  # Required before queries when using add()
 counts <- count.batch(imap, query_starts, query_ends)
 ```
 
-## Key Technical Details
+## Notes
 
 - **End-inclusive intervals**: Both start and end positions are included
 - **Automatic sorting**: Intervals are maintained in sorted order
 - **SIMD optimization**: Automatic vectorization on modern CPUs  
-- **Memory efficient**: One size_t per interval overhead
+- **Memory efficient**: One `size_t` per interval overhead
 - **Thread safe**: Read operations can be parallelized
 - **Cache friendly**: Optimized memory layout for fast iteration

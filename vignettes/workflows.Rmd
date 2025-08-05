@@ -1,13 +1,13 @@
 ---
-title: "SuperIntervals with Bioconductor: Real-World Genomics Workflows"
+title: "SuperIntervals with Bioconductor: Example Workflows"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{SuperIntervals with Bioconductor: Real-World Genomics Workflows}
+  %\VignetteIndexEntry{SuperIntervals with Bioconductor: Example Workflows}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r, include = FALSE}
+```{r setup-knitr, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
@@ -19,7 +19,7 @@ knitr::opts_chunk$set(
 ## Introduction
 
 SuperIntervals provides fast interval
-queries that seamlessly integrate with Bioconductor workflows.
+intersection queries that integrate with Bioconductor workflows.
 This vignette demonstrates practical genomics applications,
 showing how SuperIntervals works alongside `GenomicRanges` and `IRanges`.
 
@@ -74,7 +74,9 @@ cat("Created", length(genes), "genes and", length(peaks), "peaks\n")
 
 ## Core Workflow: From GRanges to IntervalMap
 
-The typical SuperIntervals workflow involves converting `GRanges` objects to `IntervalMap` for fast queries, then optionally converting results back to `GRanges` for downstream analysis.
+The typical SuperIntervals workflow involves converting `GRanges`
+objects to `IntervalMap` for fast queries, then optionally converting
+results back to `GRanges` for downstream analysis.
 
 ```{r core_workflow}
 # Convert GRanges to IntervalMap for fast queries
@@ -89,7 +91,8 @@ query_end <- 60000000
 
 # Find overlapping genes
 overlapping_indices <- search_idxs(gene_imap, query_start, query_end)
-cat("Found", length(overlapping_indices), "genes in region", query_start, "-", query_end, "\n")
+cat("Found", length(overlapping_indices), "genes in region",
+    query_start, "-", query_end, "\n")
 
 # Get the actual overlapping genes using indices
 region_genes_gr <- genes[overlapping_indices]
@@ -187,7 +190,7 @@ has_overlap <- overlap_counts > 0
 n_overlapping <- sum(has_overlap)
 
 cat("\nOverlap analysis:\n")
-cat("H3K4me3 peaks with H3K27ac overlap:", n_overlapping, "out of", length(h3k4me3_peaks), "\n")
+cat("H3K4me3 peaks with H3K27ac overlap:", n_overlapping, "/", length(h3k4me3_peaks), "\n")
 cat("Percentage:", round(100 * n_overlapping / length(h3k4me3_peaks), 1), "%\n")
 ```
 
@@ -353,4 +356,11 @@ if (all(standard_counts == super_counts)) {
 speedup <- time_standard[["elapsed"]] / time_super[["elapsed"]]
 cat("✓ Results identical, SuperIntervals is", round(speedup, 1), "x faster\n")
 }
+```
+
+```r
+## Session Information
+
+```{r sessioninfo}
+sessionInfo()
 ```

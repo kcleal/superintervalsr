@@ -7,7 +7,7 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r, include = FALSE}
+```{r setup-knitr, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
@@ -16,7 +16,9 @@ knitr::opts_chunk$set(
 
 ## Introduction
 
-SuperIntervals provides fast interval overlap queries through the IntervalMap data structure. This is particularly useful for genomic analysis, time series data, and any application requiring efficient range-based lookups.
+SuperIntervals provides fast interval intersection queries.
+This is particularly useful for genomic analysis, time series data, and
+any application requiring efficient range-based lookups.
 
 ## Basic Usage
 
@@ -102,3 +104,9 @@ SuperIntervals is ideal for:
 - **Time series**: Querying events within time ranges
 - **Spatial analysis**: Range-based spatial queries
 - **Data analysis**: Any scenario requiring fast interval overlap detection
+
+## Session Information
+
+```{r sessioninfo}
+sessionInfo()
+```

@@ -155,7 +155,7 @@ as_granges <- function(items_result, seqname = "chr1", valuename = "value") {
 #' @param ends Integer vector of end positions (inclusive)
 #' @param values Optional list of values to associate with each interval. If NULL, no values are stored.
 #' @return An IntervalMap object
-#' @export IntervalMap.from_vectors
+#' @export
 #' @examples
 #' # Create with values
 #' im <- IntervalMap.from_vectors(c(1, 10), c(5, 15), c("gene1", "gene2"))
@@ -188,6 +188,7 @@ length.IntervalMap <- function(x) {
 #' @param x IntervalMap object
 #' @param ... Additional arguments (ignored)
 #' @export
+#' @return Invisibly returns the IntervalMap object
 print.IntervalMap <- function(x, ...) {
   n <- length(x)
   cat("IntervalMap with", n, "intervals\n")
@@ -286,6 +287,12 @@ at <- function(x, idx) {
 #' @param idx Index position (1-based)
 #' @return Start position
 #' @export
+#' @return Integer start position of the interval
+#' @examples
+#' im <- IntervalMap()
+#' add(im, 1, 10, "gene1")
+#' build(im)
+#' starts_at(im, 1)  # Returns 1
 starts_at <- function(x, idx) {
   get_start_at(x, as.integer(idx))
 }
@@ -296,6 +303,12 @@ starts_at <- function(x, idx) {
 #' @param idx Index position (1-based)
 #' @return End position
 #' @export
+#' @return Integer end position of the interval
+#' @examples
+#' im <- IntervalMap()
+#' add(im, 1, 10, "gene1")
+#' build(im)
+#' ends_at(im, 1)  # Returns 10
 ends_at <- function(x, idx) {
   get_end_at(x, as.integer(idx))
 }
@@ -306,6 +319,12 @@ ends_at <- function(x, idx) {
 #' @param idx Index position (1-based)
 #' @return Associated data value
 #' @export
+#' @return Associated data value at the specified index
+#' @examples
+#' im <- IntervalMap()
+#' add(im, 1, 10, "gene1")
+#' build(im)
+#' data_at(im, 1)  # Returns "gene1"
 data_at <- function(x, idx) {
   get_data_at(x, as.integer(idx))
 }
@@ -315,6 +334,11 @@ data_at <- function(x, idx) {
 #' @param x IntervalMap object
 #' @return The IntervalMap object (invisibly)
 #' @export
+#' @return The IntervalMap object (invisibly)
+#' @examples
+#' im <- IntervalMap()
+#' add(im, 1, 10, "gene1")
+#' clear(im)
 clear <- function(x) {
   clear_intervals(x)
   invisible(x)
@@ -326,6 +350,10 @@ clear <- function(x) {
 #' @param n Number of intervals to reserve space for
 #' @return The IntervalMap object (invisibly)
 #' @export
+#' @return The IntervalMap object (invisibly)
+#' @examples
+#' im <- IntervalMap()
+#' reserve(im, 1000)  # Pre-allocate space for 1000 intervals
 reserve <- function(x, n) {
   reserve_intervals(x, as.integer(n))
   invisible(x)
@@ -336,6 +364,12 @@ reserve <- function(x, n) {
 #' @param x IntervalMap object
 #' @return Number of intervals
 #' @export
+#' @return Integer number of intervals in the map
+#' @examples
+#' im <- IntervalMap()
+#' add(im, 1, 10, "gene1")
+#' add(im, 20, 30, "gene2")
+#' size(im)  # Returns 2
 size <- function(x) {
   get_size(x)
 }
@@ -496,7 +530,7 @@ search_items <- function(x, start, end) {
 #' add(im, 1, 10, "gene1")
 #' add(im, 5, 15, "gene2")
 #' build(im)
-#' coverage(im, 1, 20)
+#' coverage(im, 1, 20)  # Returns list with coverage statistics
 coverage <- function(x, start, end) {
   get_coverage(x, as.integer(start), as.integer(end))
 }

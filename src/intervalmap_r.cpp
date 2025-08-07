@@ -31,7 +31,9 @@ void cleanup_intervalmap(IntervalMap<int, SEXP>* ptr) {
 // [[Rcpp::export]]
 SEXP create_intervalmap() {
     IntervalMap<int, SEXP>* ptr = new IntervalMap<int, SEXP>();
-    XPtr<IntervalMap<int, SEXP>> main_ptr(ptr, &cleanup_intervalmap);
+    //XPtr<IntervalMap<int, SEXP>> main_ptr(ptr, cleanup_intervalmap);
+    auto deleter = cleanup_intervalmap;
+    XPtr<IntervalMap<int, SEXP>> main_ptr(ptr, deleter);
 
     // Create a cached search vectors and attach it to the XPtr as attributes
     std::vector<SEXP>* value_cache = new std::vector<SEXP>();
@@ -64,7 +66,9 @@ SEXP create_intervalmap_from_vectors(IntegerVector starts, IntegerVector ends, L
     }
     ptr->build();  // Auto-build for convenience
 
-    XPtr<IntervalMap<int, SEXP>> main_ptr(ptr, &cleanup_intervalmap);
+    //XPtr<IntervalMap<int, SEXP>> main_ptr(ptr, cleanup_intervalmap);
+    auto deleter = cleanup_intervalmap;
+    XPtr<IntervalMap<int, SEXP>> main_ptr(ptr, deleter);
 
     std::vector<SEXP>* value_cache = new std::vector<SEXP>();
     XPtr<std::vector<SEXP>> value_cache_ptr(value_cache, true);

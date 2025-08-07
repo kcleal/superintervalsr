@@ -1,7 +1,7 @@
 Package: superintervalsr
 Type: Package
 Title: Fast, Memory-Efficient Interval Operations for Genomics
-Version: 0.99.2
+Version: 0.99.3
 Date: 2025-06-09
 Authors@R: person("Kez", "Cleal",
                   email = "clealk@cardiff.ac.uk",

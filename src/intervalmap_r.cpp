@@ -1,5 +1,5 @@
 #include <Rcpp.h>
-#include "superintervals_r.h"
+#include "superintervals.hpp"
 
 using namespace Rcpp;
 using namespace si;
@@ -26,6 +26,50 @@ void cleanup_intervalmap(IntervalMap<int, SEXP>* ptr) {
         }
         delete ptr;
 //    }
+}
+
+// Deleter for IntervalMaps whose values are already protected elsewhere
+// (e.g. set-operation results).  Releases each unique SEXP once.
+void cleanup_intervalmap_unique(IntervalMap<int, SEXP>* ptr) {
+    if (!ptr) {
+        return;
+    }
+    std::vector<SEXP> vals = ptr->data;
+    std::sort(vals.begin(), vals.end());
+    auto last = std::unique(vals.begin(), vals.end());
+    for (auto it = vals.begin(); it != last; ++it) {
+        release_sexp(*it);
+    }
+    delete ptr;
+}
+
+// Preserve each unique non-NULL SEXP in an IntervalMap once.
+void preserve_unique_values(IntervalMap<int, SEXP>* ptr) {
+    if (!ptr) {
+        return;
+    }
+    std::vector<SEXP> vals = ptr->data;
+    std::sort(vals.begin(), vals.end());
+    auto last = std::unique(vals.begin(), vals.end());
+    for (auto it = vals.begin(); it != last; ++it) {
+        preserve_sexp(*it);
+    }
+}
+
+// Wrap a newly allocated IntervalMap XPtr with caches and the unique-value deleter.
+SEXP wrap_new_intervalmap(IntervalMap<int, SEXP>* ptr) {
+    auto deleter = cleanup_intervalmap_unique;
+    XPtr<IntervalMap<int, SEXP>> main_ptr(ptr, deleter);
+
+    std::vector<SEXP>* value_cache = new std::vector<SEXP>();
+    XPtr<std::vector<SEXP>> value_cache_ptr(value_cache, true);
+    main_ptr.attr("value_cache") = value_cache_ptr;
+
+    std::vector<size_t>* idx_cache = new std::vector<size_t>();
+    XPtr<std::vector<size_t>> idx_cache_ptr(idx_cache, true);
+    main_ptr.attr("idx_cache") = idx_cache_ptr;
+
+    return main_ptr;
 }
 
 // [[Rcpp::export]]
@@ -429,4 +473,113 @@ List search_values_batch(SEXP container, IntegerVector starts, IntegerVector end
     }
 
     return results;
+}
+// [[Rcpp::export]]
+List cpp_search_point(SEXP container, int point) {
+    XPtr<IntervalMap<int, SEXP>> si(container);
+    XPtr<std::vector<SEXP>> cache_ptr(si.attr("value_cache"));
+    std::vector<SEXP>& found_values = *cache_ptr;
+    found_values.clear();
+
+    si->search_point(point, found_values);
+
+    List result(found_values.size());
+    for (size_t i = 0; i < found_values.size(); ++i) {
+        result[i] = found_values[i];
+    }
+
+    return result;
+}
+
+// [[Rcpp::export]]
+SEXP cpp_merge_overlaps(SEXP container) {
+    XPtr<IntervalMap<int, SEXP>> si(container);
+    IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si->merge_overlaps());
+    preserve_unique_values(out);
+    return wrap_new_intervalmap(out);
+}
+
+// [[Rcpp::export]]
+SEXP cpp_union_with(SEXP container_a, SEXP container_b) {
+    XPtr<IntervalMap<int, SEXP>> si_a(container_a);
+    XPtr<IntervalMap<int, SEXP>> si_b(container_b);
+    IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si_a->union_with(*si_b));
+    preserve_unique_values(out);
+    return wrap_new_intervalmap(out);
+}
+
+// [[Rcpp::export]]
+SEXP cpp_intersection(SEXP container_a, SEXP container_b) {
+    XPtr<IntervalMap<int, SEXP>> si_a(container_a);
+    XPtr<IntervalMap<int, SEXP>> si_b(container_b);
+    IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si_a->intersection(*si_b));
+    preserve_unique_values(out);
+    return wrap_new_intervalmap(out);
+}
+
+// [[Rcpp::export]]
+SEXP cpp_difference(SEXP container_a, SEXP container_b) {
+    XPtr<IntervalMap<int, SEXP>> si_a(container_a);
+    XPtr<IntervalMap<int, SEXP>> si_b(container_b);
+    IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si_a->difference(*si_b));
+    preserve_unique_values(out);
+    return wrap_new_intervalmap(out);
+}
+
+// [[Rcpp::export]]
+SEXP cpp_symmetric_difference(SEXP container_a, SEXP container_b) {
+    XPtr<IntervalMap<int, SEXP>> si_a(container_a);
+    XPtr<IntervalMap<int, SEXP>> si_b(container_b);
+    IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si_a->symmetric_difference(*si_b));
+    preserve_unique_values(out);
+    return wrap_new_intervalmap(out);
+}
+
+// [[Rcpp::export]]
+SEXP cpp_gaps(SEXP container, int lo, int hi, SEXP fill = R_NilValue) {
+    XPtr<IntervalMap<int, SEXP>> si(container);
+    IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si->gaps(lo, hi, fill));
+    preserve_unique_values(out);
+    return wrap_new_intervalmap(out);
+}
+
+// [[Rcpp::export]]
+SEXP cpp_span(SEXP container) {
+    XPtr<IntervalMap<int, SEXP>> si(container);
+
+    std::pair<int, int> result;
+    bool ok = si->span(result);
+
+    if (!ok) {
+        return R_NilValue;
+    }
+
+    return List::create(
+        Named("start") = result.first,
+        Named("end") = result.second
+    );
+}
+
+// [[Rcpp::export]]
+SEXP cpp_expand(SEXP container, int left, int right, int lo, int hi) {
+    XPtr<IntervalMap<int, SEXP>> si(container);
+    IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si->expand(left, right, lo, hi));
+    preserve_unique_values(out);
+    return wrap_new_intervalmap(out);
+}
+
+// [[Rcpp::export]]
+SEXP cpp_flank(SEXP container, int left, int right, int lo, int hi) {
+    XPtr<IntervalMap<int, SEXP>> si(container);
+    IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si->flank(left, right, lo, hi));
+    preserve_unique_values(out);
+    return wrap_new_intervalmap(out);
+}
+
+// [[Rcpp::export]]
+SEXP cpp_unique_intervals(SEXP container) {
+    XPtr<IntervalMap<int, SEXP>> si(container);
+    IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si->unique());
+    preserve_unique_values(out);
+    return wrap_new_intervalmap(out);
 }

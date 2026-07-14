@@ -113,7 +113,7 @@ IntervalMap.GRanges <- function(x, value_column = NULL, seqname = NULL, ...) {
   } else if (ncol(S4Vectors::mcols(x)) > 0) {
     # Convert each row to a named list (preserves all metadata)
     mcols_df <- as.data.frame(S4Vectors::mcols(x))
-    values <- lapply(1:nrow(mcols_df), function(i) {
+    values <- lapply(seq_len(nrow(mcols_df)), function(i) {
       as.list(mcols_df[i, , drop = FALSE])
     })
   } else {
@@ -153,7 +153,7 @@ IntervalMap.data.frame <- function(x, start_column = "start", end_column = "end"
     # Use all other columns as named lists
     other_cols <- setdiff(colnames(x), c(start_column, end_column))
     if (length(other_cols) > 0) {
-      values <- lapply(1:nrow(x), function(i) {
+      values <- lapply(seq_len(nrow(x)), function(i) {
         as.list(x[i, other_cols, drop = FALSE])
       })
     } else {
@@ -231,7 +231,7 @@ print.IntervalMap <- function(x, ...) {
   n <- length(x)
   cat("IntervalMap with", n, "intervals\n")
   if (n > 0 && n <= 10) {
-    for (i in 1:n) {
+    for (i in seq_len(n)) {
       interval <- at(x, i)
       cat(sprintf("  [%d] %d-%d", i, interval$start, interval$end))
       if (!is.null(interval$value)) {
@@ -240,7 +240,7 @@ print.IntervalMap <- function(x, ...) {
       cat("\n")
     }
   } else if (n > 10) {
-    for (i in 1:3) {
+    for (i in seq_len(3)) {
       interval <- at(x, i)
       cat(sprintf("  [%d] %d-%d", i, interval$start, interval$end))
       if (!is.null(interval$value)) {
@@ -249,7 +249,7 @@ print.IntervalMap <- function(x, ...) {
       cat("\n")
     }
     cat("  ...\n")
-    for (i in (n-2):n) {
+    for (i in seq.int(from = n-2, to = n)) {
       interval <- at(x, i)
       cat(sprintf("  [%d] %d-%d", i, interval$start, interval$end))
       if (!is.null(interval$value)) {
@@ -571,4 +571,214 @@ search_items <- function(x, start, end) {
 #' coverage(im, 1, 20)  # Returns list with coverage statistics
 coverage <- function(x, start, end) {
   get_coverage(x, as.integer(start), as.integer(end))
+}
+
+#' Search for values at a single point
+#'
+#' Returns all values associated with intervals that contain the given point.
+#'
+#' @param x IntervalMap object
+#' @param point Position to query (inclusive)
+#' @return List of values from intervals containing `point`
+#' @export
+#' @examples
+#' im <- IntervalMap()
+#' add(im, 1, 10, "A")
+#' add(im, 5, 15, "B")
+#' build(im)
+#' search_point(im, 5)  # list("A", "B")
+search_point <- function(x, point) {
+  cpp_search_point(x, as.integer(point))
+}
+
+#' Merge overlapping intervals
+#'
+#' Returns a new IntervalMap where overlapping intervals are coalesced.
+#' The data value of the first interval in each merged group is kept.
+#'
+#' @param x IntervalMap object
+#' @return A new IntervalMap with merged intervals
+#' @export
+#' @examples
+#' im <- IntervalMap(c(1, 5), ends = c(10, 15), values = c("A", "B"))
+#' merged <- merge_overlaps(im)
+#' length(merged)  # 1
+merge_overlaps <- function(x) {
+  im <- cpp_merge_overlaps(x)
+  build_index(im)
+  structure(im, class = "IntervalMap")
+}
+
+#' Union of two interval sets
+#'
+#' Returns a new IntervalMap covering all regions covered by either input.
+#' The data value of the first interval in each merged group is kept.
+#'
+#' @param x IntervalMap object
+#' @param y IntervalMap object
+#' @return A new IntervalMap representing the union
+#' @export
+#' @examples
+#' a <- IntervalMap(c(1, 20), ends = c(10, 30), values = c("A", "B"))
+#' b <- IntervalMap(c(5, 25), ends = c(15, 35), values = c("C", "D"))
+#' u <- union_with(a, b)
+union_with <- function(x, y) {
+  im <- cpp_union_with(x, y)
+  build_index(im)
+  structure(im, class = "IntervalMap")
+}
+
+#' Intersection of two interval sets
+#'
+#' Returns a new IntervalMap of regions covered by both inputs.
+#' Output pieces are not coalesced; call `merge_overlaps()` on the result
+#' if a disjoint set is required.
+#'
+#' @param x IntervalMap object
+#' @param y IntervalMap object
+#' @return A new IntervalMap representing the intersection
+#' @export
+#' @examples
+#' a <- IntervalMap(c(1, 20), ends = c(10, 30), values = c("A", "B"))
+#' b <- IntervalMap(c(5, 25), ends = c(15, 35), values = c("C", "D"))
+#' i <- intersection(a, b)
+intersection <- function(x, y) {
+  im <- cpp_intersection(x, y)
+  build_index(im)
+  structure(im, class = "IntervalMap")
+}
+
+#' Difference of two interval sets
+#'
+#' Returns a new IntervalMap of regions in `x` that are not covered by `y`.
+#'
+#' @param x IntervalMap object (A)
+#' @param y IntervalMap object (B)
+#' @return A new IntervalMap representing A \\ B
+#' @export
+#' @examples
+#' a <- IntervalMap(c(1, 20), ends = c(10, 30), values = c("A", "B"))
+#' b <- IntervalMap(c(5, 25), ends = c(15, 35), values = c("C", "D"))
+#' d <- difference(a, b)
+difference <- function(x, y) {
+  im <- cpp_difference(x, y)
+  build_index(im)
+  structure(im, class = "IntervalMap")
+}
+
+#' Symmetric difference of two interval sets
+#'
+#' Returns a new IntervalMap of regions covered by exactly one of the inputs.
+#'
+#' @param x IntervalMap object
+#' @param y IntervalMap object
+#' @return A new IntervalMap representing the symmetric difference
+#' @export
+#' @examples
+#' a <- IntervalMap(c(1, 20), ends = c(10, 30), values = c("A", "B"))
+#' b <- IntervalMap(c(5, 25), ends = c(15, 35), values = c("C", "D"))
+#' sd <- symmetric_difference(a, b)
+symmetric_difference <- function(x, y) {
+  im <- cpp_symmetric_difference(x, y)
+  build_index(im)
+  structure(im, class = "IntervalMap")
+}
+
+#' Find gaps within a range
+#'
+#' Returns uncovered regions within the supplied range as a new IntervalMap.
+#' Gap intervals are assigned the value given by `fill` (default `NULL`).
+#'
+#' @param x IntervalMap object
+#' @param lo Lower bound of the span to examine (inclusive)
+#' @param hi Upper bound of the span to examine (inclusive)
+#' @param fill Value to assign to gap intervals
+#' @return A new IntervalMap of gap intervals
+#' @export
+#' @examples
+#' im <- IntervalMap(c(1, 10), ends = c(5, 15), values = c("A", "B"))
+#' g <- gaps(im, 0, 20)
+gaps <- function(x, lo, hi, fill = NULL) {
+  im <- cpp_gaps(x, as.integer(lo), as.integer(hi), fill)
+  build_index(im)
+  structure(im, class = "IntervalMap")
+}
+
+#' Span of all intervals
+#'
+#' Returns the smallest interval enclosing every stored interval.
+#'
+#' @param x IntervalMap object
+#' @return A list with `start` and `end`, or `NULL` if the map is empty
+#' @export
+#' @examples
+#' im <- IntervalMap(c(1, 10), ends = c(5, 20), values = c("A", "B"))
+#' span(im)  # list(start = 1, end = 20)
+span <- function(x) {
+  cpp_span(x)
+}
+
+#' Expand each interval by fixed amounts
+#'
+#' Grows (or shrinks) every interval by a fixed amount.  Results are clamped
+#' to `[lo, hi]`.  Intervals shrunk past themselves are dropped.
+#'
+#' @param x IntervalMap object
+#' @param left Amount to subtract from each start (extends to the left). May be negative.
+#' @param right Amount to add to each end (extends to the right). May be negative.
+#' @param lo Lower clamp (default is 0)
+#' @param hi Upper clamp (default is the maximum 32-bit integer)
+#' @return A new IntervalMap with expanded intervals
+#' @export
+#' @examples
+#' im <- IntervalMap(c(10, 50), ends = c(20, 60), values = c("A", "B"))
+#' expanded <- expand(im, 5, 5)
+expand <- function(x, left, right,
+                   lo = 0L, hi = 2147483647L) {
+  im <- cpp_expand(x, as.integer(left), as.integer(right),
+                   as.integer(lo), as.integer(hi))
+  build_index(im)
+  structure(im, class = "IntervalMap")
+}
+
+#' Create flanking intervals beside each interval
+#'
+#' Returns a new IntervalMap containing only the flanking intervals, not the
+#' originals.  Left flanks are `[start - left, start - 1]` and right flanks
+#' are `[end + 1, end + right]`.  Zero-width or out-of-range flanks are skipped.
+#'
+#' @param x IntervalMap object
+#' @param left Width of the left flank (0 = none)
+#' @param right Width of the right flank (0 = none)
+#' @param lo Lower clamp (default is 0)
+#' @param hi Upper clamp (default is the maximum 32-bit integer)
+#' @return A new IntervalMap containing the flank intervals
+#' @export
+#' @examples
+#' im <- IntervalMap(c(10, 50), ends = c(20, 60), values = c("A", "B"))
+#' f <- flank(im, 5, 5)
+flank <- function(x, left, right,
+                  lo = 0L, hi = 2147483647L) {
+  im <- cpp_flank(x, as.integer(left), as.integer(right),
+                  as.integer(lo), as.integer(hi))
+  build_index(im)
+  structure(im, class = "IntervalMap")
+}
+
+#' Remove duplicate intervals
+#'
+#' Returns a new IntervalMap keeping only one interval per distinct
+#' `(start, end)` coordinate pair.  The data value of the first occurrence is kept.
+#'
+#' @param x IntervalMap object
+#' @return A new IntervalMap with duplicates removed
+#' @export
+#' @examples
+#' im <- IntervalMap(c(1, 1, 10), ends = c(5, 5, 15), values = c("A", "B", "C"))
+#' u <- unique_intervals(im)
+#' length(u)  # 2
+unique_intervals <- function(x) {
+  im <- cpp_unique_intervals(x)
+  build_index(im)
+  structure(im, class = "IntervalMap")
 }

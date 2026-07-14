@@ -101,3 +101,47 @@ search_values_batch <- function(container, starts, ends) {
     .Call(`_superintervalsr_search_values_batch`, container, starts, ends)
 }
 
+cpp_search_point <- function(container, point) {
+    .Call(`_superintervalsr_cpp_search_point`, container, point)
+}
+
+cpp_merge_overlaps <- function(container) {
+    .Call(`_superintervalsr_cpp_merge_overlaps`, container)
+}
+
+cpp_union_with <- function(container_a, container_b) {
+    .Call(`_superintervalsr_cpp_union_with`, container_a, container_b)
+}
+
+cpp_intersection <- function(container_a, container_b) {
+    .Call(`_superintervalsr_cpp_intersection`, container_a, container_b)
+}
+
+cpp_difference <- function(container_a, container_b) {
+    .Call(`_superintervalsr_cpp_difference`, container_a, container_b)
+}
+
+cpp_symmetric_difference <- function(container_a, container_b) {
+    .Call(`_superintervalsr_cpp_symmetric_difference`, container_a, container_b)
+}
+
+cpp_gaps <- function(container, lo, hi, fill = NULL) {
+    .Call(`_superintervalsr_cpp_gaps`, container, lo, hi, fill)
+}
+
+cpp_span <- function(container) {
+    .Call(`_superintervalsr_cpp_span`, container)
+}
+
+cpp_expand <- function(container, left, right, lo, hi) {
+    .Call(`_superintervalsr_cpp_expand`, container, left, right, lo, hi)
+}
+
+cpp_flank <- function(container, left, right, lo, hi) {
+    .Call(`_superintervalsr_cpp_flank`, container, left, right, lo, hi)
+}
+
+cpp_unique_intervals <- function(container) {
+    .Call(`_superintervalsr_cpp_unique_intervals`, container)
+}
+

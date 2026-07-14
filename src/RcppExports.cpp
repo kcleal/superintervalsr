@@ -312,6 +312,143 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_search_point
+List cpp_search_point(SEXP container, int point);
+RcppExport SEXP _superintervalsr_cpp_search_point(SEXP containerSEXP, SEXP pointSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type container(containerSEXP);
+    Rcpp::traits::input_parameter< int >::type point(pointSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_search_point(container, point));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_merge_overlaps
+SEXP cpp_merge_overlaps(SEXP container);
+RcppExport SEXP _superintervalsr_cpp_merge_overlaps(SEXP containerSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type container(containerSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_merge_overlaps(container));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_union_with
+SEXP cpp_union_with(SEXP container_a, SEXP container_b);
+RcppExport SEXP _superintervalsr_cpp_union_with(SEXP container_aSEXP, SEXP container_bSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type container_a(container_aSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type container_b(container_bSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_union_with(container_a, container_b));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_intersection
+SEXP cpp_intersection(SEXP container_a, SEXP container_b);
+RcppExport SEXP _superintervalsr_cpp_intersection(SEXP container_aSEXP, SEXP container_bSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type container_a(container_aSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type container_b(container_bSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_intersection(container_a, container_b));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_difference
+SEXP cpp_difference(SEXP container_a, SEXP container_b);
+RcppExport SEXP _superintervalsr_cpp_difference(SEXP container_aSEXP, SEXP container_bSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type container_a(container_aSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type container_b(container_bSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_difference(container_a, container_b));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_symmetric_difference
+SEXP cpp_symmetric_difference(SEXP container_a, SEXP container_b);
+RcppExport SEXP _superintervalsr_cpp_symmetric_difference(SEXP container_aSEXP, SEXP container_bSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type container_a(container_aSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type container_b(container_bSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_symmetric_difference(container_a, container_b));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_gaps
+SEXP cpp_gaps(SEXP container, int lo, int hi, SEXP fill);
+RcppExport SEXP _superintervalsr_cpp_gaps(SEXP containerSEXP, SEXP loSEXP, SEXP hiSEXP, SEXP fillSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type container(containerSEXP);
+    Rcpp::traits::input_parameter< int >::type lo(loSEXP);
+    Rcpp::traits::input_parameter< int >::type hi(hiSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type fill(fillSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_gaps(container, lo, hi, fill));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_span
+SEXP cpp_span(SEXP container);
+RcppExport SEXP _superintervalsr_cpp_span(SEXP containerSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type container(containerSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_span(container));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_expand
+SEXP cpp_expand(SEXP container, int left, int right, int lo, int hi);
+RcppExport SEXP _superintervalsr_cpp_expand(SEXP containerSEXP, SEXP leftSEXP, SEXP rightSEXP, SEXP loSEXP, SEXP hiSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type container(containerSEXP);
+    Rcpp::traits::input_parameter< int >::type left(leftSEXP);
+    Rcpp::traits::input_parameter< int >::type right(rightSEXP);
+    Rcpp::traits::input_parameter< int >::type lo(loSEXP);
+    Rcpp::traits::input_parameter< int >::type hi(hiSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_expand(container, left, right, lo, hi));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_flank
+SEXP cpp_flank(SEXP container, int left, int right, int lo, int hi);
+RcppExport SEXP _superintervalsr_cpp_flank(SEXP containerSEXP, SEXP leftSEXP, SEXP rightSEXP, SEXP loSEXP, SEXP hiSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type container(containerSEXP);
+    Rcpp::traits::input_parameter< int >::type left(leftSEXP);
+    Rcpp::traits::input_parameter< int >::type right(rightSEXP);
+    Rcpp::traits::input_parameter< int >::type lo(loSEXP);
+    Rcpp::traits::input_parameter< int >::type hi(hiSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_flank(container, left, right, lo, hi));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_unique_intervals
+SEXP cpp_unique_intervals(SEXP container);
+RcppExport SEXP _superintervalsr_cpp_unique_intervals(SEXP containerSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type container(containerSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_unique_intervals(container));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_superintervalsr_create_intervalmap", (DL_FUNC) &_superintervalsr_create_intervalmap, 0},
@@ -339,6 +476,17 @@ static const R_CallMethodDef CallEntries[] = {
     {"_superintervalsr_search_idxs_batch", (DL_FUNC) &_superintervalsr_search_idxs_batch, 3},
     {"_superintervalsr_count_batch", (DL_FUNC) &_superintervalsr_count_batch, 3},
     {"_superintervalsr_search_values_batch", (DL_FUNC) &_superintervalsr_search_values_batch, 3},
+    {"_superintervalsr_cpp_search_point", (DL_FUNC) &_superintervalsr_cpp_search_point, 2},
+    {"_superintervalsr_cpp_merge_overlaps", (DL_FUNC) &_superintervalsr_cpp_merge_overlaps, 1},
+    {"_superintervalsr_cpp_union_with", (DL_FUNC) &_superintervalsr_cpp_union_with, 2},
+    {"_superintervalsr_cpp_intersection", (DL_FUNC) &_superintervalsr_cpp_intersection, 2},
+    {"_superintervalsr_cpp_difference", (DL_FUNC) &_superintervalsr_cpp_difference, 2},
+    {"_superintervalsr_cpp_symmetric_difference", (DL_FUNC) &_superintervalsr_cpp_symmetric_difference, 2},
+    {"_superintervalsr_cpp_gaps", (DL_FUNC) &_superintervalsr_cpp_gaps, 4},
+    {"_superintervalsr_cpp_span", (DL_FUNC) &_superintervalsr_cpp_span, 1},
+    {"_superintervalsr_cpp_expand", (DL_FUNC) &_superintervalsr_cpp_expand, 5},
+    {"_superintervalsr_cpp_flank", (DL_FUNC) &_superintervalsr_cpp_flank, 5},
+    {"_superintervalsr_cpp_unique_intervals", (DL_FUNC) &_superintervalsr_cpp_unique_intervals, 1},
     {NULL, NULL, 0}
 };
 

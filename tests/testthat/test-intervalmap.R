@@ -477,3 +477,213 @@ test_that("Type conversion works correctly", {
   expect_equal(interval1$start, 1)
   expect_equal(interval1$end, 5)
 })
+
+test_that("search_point finds intervals containing a point", {
+  imap <- IntervalMap()
+  add(imap, 1, 10, "A")
+  add(imap, 5, 15, "B")
+  add(imap, 20, 30, "C")
+  build(imap)
+
+  vals <- search_point(imap, 5)
+  expect_equal(length(vals), 2)
+  expect_true("A" %in% unlist(vals))
+  expect_true("B" %in% unlist(vals))
+
+  vals <- search_point(imap, 12)
+  expect_equal(length(vals), 1)
+  expect_equal(vals[[1]], "B")
+
+  vals <- search_point(imap, 0)
+  expect_equal(length(vals), 0)
+})
+
+test_that("merge_overlaps coalesces overlapping intervals", {
+  imap <- IntervalMap()
+  add(imap, 1, 10, "A")
+  add(imap, 5, 15, "B")
+  add(imap, 20, 30, "C")
+  build(imap)
+
+  merged <- merge_overlaps(imap)
+  expect_s3_class(merged, "IntervalMap")
+  expect_equal(length(merged), 2)
+
+  interval1 <- at(merged, 1)
+  expect_equal(interval1$start, 1)
+  expect_equal(interval1$end, 15)
+  expect_equal(interval1$value, "A")
+
+  interval2 <- at(merged, 2)
+  expect_equal(interval2$start, 20)
+  expect_equal(interval2$end, 30)
+  expect_equal(interval2$value, "C")
+})
+
+test_that("union_with combines two interval sets", {
+  a <- IntervalMap()
+  add(a, 1, 10, "A")
+  build(a)
+
+  b <- IntervalMap()
+  add(b, 5, 15, "B")
+  build(b)
+
+  u <- union_with(a, b)
+  expect_s3_class(u, "IntervalMap")
+  expect_equal(length(u), 1)
+
+  interval1 <- at(u, 1)
+  expect_equal(interval1$start, 1)
+  expect_equal(interval1$end, 15)
+  expect_equal(interval1$value, "A")
+})
+
+test_that("intersection returns shared regions", {
+  a <- IntervalMap()
+  add(a, 1, 10, "A")
+  add(a, 20, 30, "B")
+  build(a)
+
+  b <- IntervalMap()
+  add(b, 5, 15, "C")
+  add(b, 25, 35, "D")
+  build(b)
+
+  i <- intersection(a, b)
+  expect_s3_class(i, "IntervalMap")
+  expect_equal(length(i), 2)
+
+  expect_true(has_overlaps(i, 5, 10))
+  expect_true(has_overlaps(i, 25, 30))
+  expect_false(has_overlaps(i, 11, 19))
+})
+
+test_that("difference returns regions in A not covered by B", {
+  a <- IntervalMap()
+  add(a, 1, 10, "A")
+  build(a)
+
+  b <- IntervalMap()
+  add(b, 5, 15, "B")
+  build(b)
+
+  d <- difference(a, b)
+  expect_s3_class(d, "IntervalMap")
+  expect_equal(length(d), 1)
+
+  interval1 <- at(d, 1)
+  expect_equal(interval1$start, 1)
+  expect_equal(interval1$end, 4)
+  expect_equal(interval1$value, "A")
+})
+
+test_that("symmetric_difference returns regions in exactly one set", {
+  a <- IntervalMap()
+  add(a, 1, 10, "A")
+  build(a)
+
+  b <- IntervalMap()
+  add(b, 5, 15, "B")
+  build(b)
+
+  sd <- symmetric_difference(a, b)
+  expect_s3_class(sd, "IntervalMap")
+  expect_equal(length(sd), 2)
+
+  starts <- get_all_starts(sd)
+  ends <- get_all_ends(sd)
+  expect_true(1 %in% starts)
+  expect_true(11 %in% starts)
+  expect_true(4 %in% ends)
+  expect_true(15 %in% ends)
+})
+
+test_that("gaps returns uncovered regions", {
+  imap <- IntervalMap()
+  add(imap, 1, 5, "A")
+  add(imap, 10, 15, "B")
+  build(imap)
+
+  g <- gaps(imap, 1, 20)
+  expect_s3_class(g, "IntervalMap")
+  expect_equal(length(g), 2)
+
+  interval1 <- at(g, 1)
+  expect_equal(interval1$start, 6)
+  expect_equal(interval1$end, 9)
+  expect_null(interval1$value)
+
+  interval2 <- at(g, 2)
+  expect_equal(interval2$start, 16)
+  expect_equal(interval2$end, 20)
+  expect_null(interval2$value)
+})
+
+test_that("span returns the convex hull", {
+  imap <- IntervalMap()
+  add(imap, 5, 10, "A")
+  add(imap, 1, 20, "B")
+  build(imap)
+
+  s <- span(imap)
+  expect_equal(s$start, 1)
+  expect_equal(s$end, 20)
+
+  empty <- IntervalMap()
+  expect_null(span(empty))
+})
+
+test_that("expand grows or shrinks intervals", {
+  imap <- IntervalMap()
+  add(imap, 10, 20, "A")
+  build(imap)
+
+  expanded <- expand(imap, 5, 5)
+  expect_s3_class(expanded, "IntervalMap")
+  expect_equal(length(expanded), 1)
+
+  interval1 <- at(expanded, 1)
+  expect_equal(interval1$start, 5)
+  expect_equal(interval1$end, 25)
+  expect_equal(interval1$value, "A")
+})
+
+test_that("flank creates flanking intervals", {
+  imap <- IntervalMap()
+  add(imap, 10, 20, "A")
+  build(imap)
+
+  f <- flank(imap, 2, 3)
+  expect_s3_class(f, "IntervalMap")
+  expect_equal(length(f), 2)
+
+  starts <- get_all_starts(f)
+  ends <- get_all_ends(f)
+  expect_true(8 %in% starts)
+  expect_true(21 %in% starts)
+  expect_true(9 %in% ends)
+  expect_true(23 %in% ends)
+})
+
+test_that("unique_intervals removes exact duplicates", {
+  imap <- IntervalMap()
+  add(imap, 1, 5, "A")
+  add(imap, 1, 5, "B")
+  add(imap, 10, 15, "C")
+  build(imap)
+
+  u <- unique_intervals(imap)
+  expect_s3_class(u, "IntervalMap")
+  expect_equal(length(u), 2)
+
+  interval1 <- at(u, 1)
+  expect_equal(interval1$start, 1)
+  expect_equal(interval1$end, 5)
+  expect_equal(interval1$value, "A")
+
+  interval2 <- at(u, 2)
+  expect_equal(interval2$start, 10)
+  expect_equal(interval2$end, 15)
+  expect_equal(interval2$value, "C")
+})

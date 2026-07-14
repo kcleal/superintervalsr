@@ -1,8 +1,8 @@
 Package: superintervalsr
 Type: Package
 Title: Fast, Memory-Efficient Interval Operations for Genomics
-Version: 0.99.3
-Date: 2025-06-09
+Version: 0.99.4
+Date: 2026-07-14
 Authors@R: person("Kez", "Cleal",
                   email = "clealk@cardiff.ac.uk",
                   role = c("aut", "cre"),
@@ -17,9 +17,10 @@ URL: https://github.com/kcleal/superintervalsr
 BugReports: https://github.com/kcleal/superintervalsr/issues
 biocViews: Infrastructure, DataRepresentation, GenomeAnnotation,
            Genetics, Preprocessing, Software, Sequencing
-Depends: R (>= 4.3.0)
+Depends: R (>= 4.0.0)
 Imports:
-    Rcpp (>= 1.0.0)
+    Rcpp (>= 1.0.0),
+    S4Vectors
 LinkingTo: Rcpp
 Suggests:
     knitr,
@@ -28,11 +29,10 @@ Suggests:
     microbenchmark,
     IRanges,
     GenomicRanges,
-    S4Vectors,
     pryr
 SystemRequirements: C++17
 Encoding: UTF-8
 Language: en-US
-RoxygenNote: 7.3.2
 VignetteBuilder: knitr
 LazyData: false
+Config/roxygen2/version: 8.0.0

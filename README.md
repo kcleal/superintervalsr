@@ -90,7 +90,7 @@ Both strand-aware and strand-ignored queries are tested. Timings below are
 medians of five repetitions, with ten calls per repetition through 10,000
 queries and one call per repetition at 100,000 and 1,000,000 queries. Subject
 indexes are built once and construction time is recorded separately. Units are
-milliseconds per batch. The plot uses logarithmic axes.
+milliseconds per batch.
 
 | Subject | Operation | Queries | SuperIntervals | Prebuilt GNCList | GRanges |
 |---|---|---:|---:|---:|---:|

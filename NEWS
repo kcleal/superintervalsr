@@ -1,0 +1,25 @@
+Changes in version 0.99.6
+
+* Root metadata in an R-owned list to avoid expensive per-value preservation
+  and cleanup for large indexes.
+* Add GenomicIntervalMap, an S4 genomic subject index that preserves source
+  GRanges and supports chromosome-aware and strand-aware overlap methods.
+* Return Hits in original input row order and support standard GenomicRanges
+  overlap options, with fallback for zero-width ranges and advanced options.
+* Add a real airway RNA-seq annotation workflow and genomic integration tests.
+* Validate against R 4.6 and Bioconductor 3.24 development dependencies.
+
+Changes in version 0.99.5
+
+* Synchronize generated Rcpp bindings and help files with SuperIntervals 1.0.3.
+* Correct external-pointer finalizers and preserve metadata per stored occurrence.
+* Validate coordinates at construction and mutation, and reject multi-sequence
+  GRanges unless filtered. Keep query paths free of index-state checks.
+* Use inclusive coverage widths and widened arithmetic in boundary operations.
+* Document sorted indices, reference semantics, metadata policies and genomic
+  coordinate limitations; add executable Bioconductor workflows and regression tests.
+* Prepare package metadata, portable C++17 build files and submission guidance.
+
+Changes in version 0.99.0
+
+* Initial development version of the R wrapper for SuperIntervals.

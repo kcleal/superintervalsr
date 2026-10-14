@@ -1,0 +1,7 @@
+The vendored inst/include/superintervals.hpp is SuperIntervals version 1.0.3.
+Upstream project: https://github.com/kcleal/superintervals
+Maintainer: Kez Cleal. Package license: MIT + file LICENSE.
+
+R wrapper maintenance, documentation revisions and regression tests in
+versions 0.99.5 and 0.99.6 were assisted by OpenAI Codex (October 2026).
+The package maintainer remains responsible for review and maintenance.

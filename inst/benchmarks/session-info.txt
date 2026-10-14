@@ -1,0 +1,31 @@
+R version 4.6.1 (2026-06-24)
+Platform: aarch64-apple-darwin20.0.0
+Running under: macOS Tahoe 26.7.1
+
+Matrix products: default
+BLAS/LAPACK: /Users/sbi8kc2/Documents/data/superintervals_dev/bioc-devel/environment/lib/libopenblas.0.dylib;  LAPACK version 3.12.0
+
+locale:
+[1] C.UTF-8/C.UTF-8/C.UTF-8/C/C.UTF-8/C.UTF-8
+
+time zone: Europe/London
+tzcode source: system (macOS)
+
+attached base packages:
+[1] stats4    stats     graphics  grDevices utils     datasets  methods  
+[8] base     
+
+other attached packages:
+[1] superintervalsr_0.99.6 GenomicRanges_1.65.4   Seqinfo_1.3.2         
+[4] IRanges_2.47.5         S4Vectors_0.51.10      BiocGenerics_0.59.12  
+[7] generics_0.1.4        
+
+loaded via a namespace (and not attached):
+ [1] SparseArray_1.13.4          Matrix_1.7-6               
+ [3] lattice_0.23-1              MatrixGenerics_1.25.0      
+ [5] matrixStats_1.5.0           abind_1.4-8                
+ [7] S4Arrays_1.13.2             XVector_0.53.0             
+ [9] Biobase_2.73.2              grid_4.6.1                 
+[11] DelayedArray_0.39.8         compiler_4.6.1             
+[13] tools_4.6.1                 Rcpp_1.1.2                 
+[15] SummarizedExperiment_1.43.0

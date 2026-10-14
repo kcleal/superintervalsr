@@ -117,19 +117,8 @@ Both constructors receive an existing GRanges; creating that input is excluded.
 | synthetic_100000 | 100,000 | 13 | 19 |
 
 The SuperIntervalMap timings include the complete R adapter: splitting subjects
-by chromosome and building one native index per chromosome. Original row IDs
-and strand codes are stored as native metadata; strand matching is performed
-in C++ while iterating over candidate overlaps. GNCList also builds one NCList
-per chromosome and handles strand filtering during queries. These measure the
-genomic interfaces rather than the bare C++ index builders.
+by chromosome and building one native index per chromosome.
 
-Construction and query costs should be considered together when choosing an
-interface. These are observed timings on this machine and dataset; results vary
-with overlap density and hardware. Memory usage is not compared because
-ordinary R object-size tools do not account for the C++ index allocations.
-SuperIntervalMap retains the original GRanges and adds native indexes, so the
-core library's compact representation does not by itself establish a memory
-advantage for this adapter.
 
 ![GRanges query benchmark](inst/benchmarks/query-times.png)
 

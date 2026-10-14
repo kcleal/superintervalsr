@@ -31,7 +31,12 @@ make_synthetic <- function(n) {
         strand = sample(c("+", "-", "*"), n, replace = TRUE),
         feature_id = seq_len(n))
 }
-pairs <- function(x) sort(paste(queryHits(x), subjectHits(x)))
+pairs <- function(x) {
+    query <- queryHits(x)
+    subject <- subjectHits(x)
+    positions <- order(query, subject)
+    list(query = query[positions], subject = subject[positions])
+}
 set.seed(100)
 datasets <- list(airway = airway_genes,
                  synthetic_10000 = make_synthetic(10000L),
@@ -47,7 +52,10 @@ for (dataset in names(datasets)) {
         GNCList_seconds = median_time(function() GNCList(subject), calls = 1L))
     index <- SuperIntervalMap(subject)
     reference <- GNCList(subject)
-    for (n_query in c(100L, 1000L, 10000L)) {
+    for (n_query in c(100L, 1000L, 10000L, 100000L, 1000000L)) {
+        cat("  ", format(n_query, big.mark = ","), "queries\n")
+        # Keep large batches practical: five repetitions, fewer calls per rep.
+        calls <- max(1L, min(10L, 100000L %/% n_query))
         query <- promoters(subject[sample(seq_along(subject), n_query,
                                           replace = TRUE)],
                            upstream = 1000L, downstream = 100L)
@@ -59,18 +67,22 @@ for (dataset in names(datasets)) {
             actual <- findOverlaps(query, index, ignore.strand = ignore)
             expected <- findOverlaps(query, reference, ignore.strand = ignore)
             stopifnot(identical(pairs(actual), pairs(expected)))
+            n_hits <- length(actual)
+            rm(counts, reference_counts, actual, expected)
             for (operation in c("countOverlaps", "findOverlaps")) {
                 fun <- get(operation, envir = asNamespace("GenomicRanges"))
                 methods <- list(SuperIntervals = index, GNCList = reference,
                                 GRanges = subject)
                 timings <- vapply(methods, function(indexed_subject) {
                     median_time(function() fun(query, indexed_subject,
-                                              ignore.strand = ignore))
+                                              ignore.strand = ignore),
+                                calls = calls)
                 }, numeric(1))
                 results[[length(results) + 1L]] <- data.frame(
                     dataset = dataset, subjects = length(subject),
                     queries = n_query, ignore_strand = ignore,
-                    operation = operation, hits = length(actual),
+                    operation = operation, hits = n_hits,
+                    calls_per_repetition = calls,
                     SuperIntervals_seconds = timings[["SuperIntervals"]],
                     GNCList_seconds = timings[["GNCList"]],
                     GRanges_seconds = timings[["GRanges"]])
@@ -86,7 +98,8 @@ results$GNCList_over_SuperIntervals <-
 build_results <- do.call(rbind, build_results)
 utils::write.csv(results, file.path(output_dir, "queries.csv"), row.names = FALSE)
 utils::write.csv(build_results, file.path(output_dir, "build.csv"), row.names = FALSE)
-writeLines(capture.output(sessionInfo()), file.path(output_dir, "session-info.txt"))
+writeLines(trimws(capture.output(sessionInfo()), which = "right"),
+           file.path(output_dir, "session-info.txt"))
 writeLines(capture.output(Sys.info()), file.path(output_dir, "system-info.txt"))
 print(results, row.names = FALSE)
 print(build_results, row.names = FALSE)
@@ -106,7 +119,9 @@ for (operation in c("countOverlaps", "findOverlaps")) {
         graphics::matplot(rows$queries, pmax(times, 0.1), type = "b", log = "xy",
             col = colors, lty = 1L, pch = 16:18, xlab = "Query ranges",
             ylab = "Median elapsed time (ms)",
-            main = paste(dataset, operation, sep = "\n"))
+            main = paste(dataset, operation, sep = "\n"), xaxt = "n")
+        graphics::axis(1, at = c(100, 1000, 10000, 100000, 1000000),
+                       labels = c("100", "1k", "10k", "100k", "1M"))
         graphics::legend("bottomright", c("SuperIntervals", "GNCList", "GRanges"),
                          col = colors, lty = 1L, pch = 16:18, bty = "n", cex = 0.7)
     }

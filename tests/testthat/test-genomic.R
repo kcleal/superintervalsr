@@ -85,3 +85,19 @@ test_that("zero widths and advanced overlap options use standard semantics", {
     expect_error(IRanges::countOverlaps(query,
         SuperIntervalMap(subject[1]), ignore.strand = NA), "ignore.strand")
 })
+
+
+test_that("native genomic indexes survive collection and reject serialization", {
+    subject <- GenomicRanges::GRanges("chr1",
+        IRanges::IRanges(c(1, 1, 1), c(10, 10, 10)),
+        strand = c("+", "-", "*"))
+    index <- SuperIntervalMap(subject)
+    rm(subject)
+    invisible(gc())
+    query <- GenomicRanges::GRanges("chr1",
+        IRanges::IRanges(rep(5L, 3), rep(5L, 3)),
+        strand = c("+", "-", "*"))
+    expect_identical(unname(IRanges::countOverlaps(query, index)), c(2L, 2L, 3L))
+    restored <- unserialize(serialize(index, NULL))
+    expect_error(IRanges::countOverlaps(query, restored), "recreate maps")
+})

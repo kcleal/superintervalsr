@@ -1,5 +1,9 @@
 Changes in version 0.99.7
 
+* Use one native genomic index per chromosome with strand filtering in C++.
+* Store genomic row IDs and strands as native metadata rather than R objects.
+* Update genomic construction and query benchmarks for the shared index.
+
 * Rename the genomic class and constructor to SuperIntervalMap.
 * Update overlap methods, conversion, examples and benchmarks to the new name.
 

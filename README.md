@@ -71,7 +71,7 @@ as_granges(index)[subjectHits(hits)]
 Hits refer to original subject rows. Strand matching follows GenomicRanges,
 including wildcard `"*"`; use `ignore.strand = TRUE` to ignore it. Advanced overlap
 options and zero-width features use GenomicRanges directly. The genomic adapter
-uses up to three indexes per sequence to speed repeated queries. Reconstruct it
+uses one index per sequence, with strand filtering in C++. Reconstruct it
 after editing subject coordinates; save its original GRanges for serialization.
 The workflow vignette includes a real RNA-seq example using `airway` annotations.
 
@@ -84,27 +84,52 @@ store row IDs as values when mapping low-level hits to original input rows.
 On macOS ARM64 with R 4.6.1/Bioconductor 3.24 (14 October 2026), the
 chromosome- and strand-aware interface produced the same counts and hit pairs as
 GenomicRanges. The benchmark uses real airway gene spans and two synthetic
-subjects across 22 chromosomes, with 100, 1,000 and 10,000 promoter queries.
+subjects across 22 chromosomes, with 100, 1,000, 10,000, 100,000 and 1,000,000
+promoter queries.
 Both strand-aware and strand-ignored queries are tested. Timings below are
-medians of five repetitions of ten calls; subject indexes are built once and
-construction time is recorded separately. Units are milliseconds per batch.
+medians of five repetitions, with ten calls per repetition through 10,000
+queries and one call per repetition at 100,000 and 1,000,000 queries. Subject
+indexes are built once and construction time is recorded separately. Units are
+milliseconds per batch. The plot uses logarithmic axes.
 
 | Subject | Operation | Queries | SuperIntervals | Prebuilt GNCList | GRanges |
 |---|---|---:|---:|---:|---:|
-| airway | countOverlaps | 10,000 | 4.2 | 10.8 | 17.4 |
-| airway | findOverlaps | 10,000 | 7.5 | 10.9 | 17.3 |
-| synthetic_10000 | countOverlaps | 10,000 | 3.5 | 7.2 | 7.8 |
-| synthetic_10000 | findOverlaps | 10,000 | 6.3 | 7.3 | 8.2 |
-| synthetic_100000 | countOverlaps | 10,000 | 3.8 | 15.0 | 18.6 |
-| synthetic_100000 | findOverlaps | 10,000 | 7.9 | 15.0 | 18.8 |
+| airway | countOverlaps | 10,000 | 2.2 | 10.8 | 16.8 |
+| airway | findOverlaps | 10,000 | 3.0 | 10.6 | 17.0 |
+| synthetic_10000 | countOverlaps | 10,000 | 1.4 | 6.8 | 7.3 |
+| synthetic_10000 | findOverlaps | 10,000 | 2.0 | 7.0 | 8.0 |
+| synthetic_100000 | countOverlaps | 10,000 | 1.9 | 12.6 | 16.4 |
+| synthetic_100000 | findOverlaps | 10,000 | 2.9 | 13.0 | 17.0 |
 
-For the 63,677 airway gene spans, the SuperIntervals genomic index took 56 ms
-to build, versus 17 ms for GNCList. For 100,000 synthetic features, the times
-were 85 ms and 20 ms. This favors reusing the index across batches: a single
-query can cost more overall once construction is included. These are observed
-timings on this machine and dataset; results vary with overlap density and
-hardware. Memory usage is not compared because ordinary R object-size tools do
-not account for the C++ index allocations.
+`GNCList(subject)` is GenomicRanges' prebuilt Nested Containment List index.
+It provides the repeated-query baseline; the GRanges column passes the original
+subject directly to GenomicRanges, which performs preprocessing during the call.
+
+### Index construction
+
+These are median construction times over five repetitions, in milliseconds.
+Both constructors receive an existing GRanges; creating that input is excluded.
+
+| Subject | Features | SuperIntervalMap | GNCList |
+|---|---:|---:|---:|
+| airway | 63,677 | 8 | 17 |
+| synthetic_10000 | 10,000 | 1 | 6 |
+| synthetic_100000 | 100,000 | 13 | 19 |
+
+The SuperIntervalMap timings include the complete R adapter: splitting subjects
+by chromosome and building one native index per chromosome. Original row IDs
+and strand codes are stored as native metadata; strand matching is performed
+in C++ while iterating over candidate overlaps. GNCList also builds one NCList
+per chromosome and handles strand filtering during queries. These measure the
+genomic interfaces rather than the bare C++ index builders.
+
+Construction and query costs should be considered together when choosing an
+interface. These are observed timings on this machine and dataset; results vary
+with overlap density and hardware. Memory usage is not compared because
+ordinary R object-size tools do not account for the C++ index allocations.
+SuperIntervalMap retains the original GRanges and adds native indexes, so the
+core library's compact representation does not by itself establish a memory
+advantage for this adapter.
 
 ![GRanges query benchmark](inst/benchmarks/query-times.png)
 

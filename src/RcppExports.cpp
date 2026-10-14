@@ -449,6 +449,36 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// create_genomic_index
+SEXP create_genomic_index(IntegerVector starts, IntegerVector ends, IntegerVector rows, IntegerVector strands);
+RcppExport SEXP _superintervalsr_create_genomic_index(SEXP startsSEXP, SEXP endsSEXP, SEXP rowsSEXP, SEXP strandsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerVector >::type starts(startsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type ends(endsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type rows(rowsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type strands(strandsSEXP);
+    rcpp_result_gen = Rcpp::wrap(create_genomic_index(starts, ends, rows, strands));
+    return rcpp_result_gen;
+END_RCPP
+}
+// query_genomic_index
+SEXP query_genomic_index(SEXP container, IntegerVector starts, IntegerVector ends, IntegerVector strands, bool ignore_strand, bool count_only);
+RcppExport SEXP _superintervalsr_query_genomic_index(SEXP containerSEXP, SEXP startsSEXP, SEXP endsSEXP, SEXP strandsSEXP, SEXP ignore_strandSEXP, SEXP count_onlySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type container(containerSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type starts(startsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type ends(endsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type strands(strandsSEXP);
+    Rcpp::traits::input_parameter< bool >::type ignore_strand(ignore_strandSEXP);
+    Rcpp::traits::input_parameter< bool >::type count_only(count_onlySEXP);
+    rcpp_result_gen = Rcpp::wrap(query_genomic_index(container, starts, ends, strands, ignore_strand, count_only));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_superintervalsr_create_intervalmap", (DL_FUNC) &_superintervalsr_create_intervalmap, 0},
@@ -487,6 +517,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_superintervalsr_cpp_expand", (DL_FUNC) &_superintervalsr_cpp_expand, 5},
     {"_superintervalsr_cpp_flank", (DL_FUNC) &_superintervalsr_cpp_flank, 5},
     {"_superintervalsr_cpp_unique_intervals", (DL_FUNC) &_superintervalsr_cpp_unique_intervals, 1},
+    {"_superintervalsr_create_genomic_index", (DL_FUNC) &_superintervalsr_create_genomic_index, 4},
+    {"_superintervalsr_query_genomic_index", (DL_FUNC) &_superintervalsr_query_genomic_index, 6},
     {NULL, NULL, 0}
 };
 

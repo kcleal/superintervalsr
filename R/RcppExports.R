@@ -145,3 +145,11 @@ cpp_unique_intervals <- function(container) {
     .Call(`_superintervalsr_cpp_unique_intervals`, container)
 }
 
+create_genomic_index <- function(starts, ends, rows, strands) {
+    .Call(`_superintervalsr_create_genomic_index`, starts, ends, rows, strands)
+}
+
+query_genomic_index <- function(container, starts, ends, strands, ignore_strand, count_only) {
+    .Call(`_superintervalsr_query_genomic_index`, container, starts, ends, strands, ignore_strand, count_only)
+}
+

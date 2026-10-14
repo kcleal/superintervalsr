@@ -527,3 +527,69 @@ SEXP cpp_unique_intervals(SEXP container) {
     IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si->unique());
     return wrap_new_intervalmap(out);
 }
+
+// Genomic indexes store native row IDs and strand codes, avoiding per-row SEXPs.
+struct GenomicFeature {
+    int row;
+    int strand;
+};
+using GenomicMap = IntervalMap<int, GenomicFeature>;
+
+// [[Rcpp::export]]
+SEXP create_genomic_index(IntegerVector starts, IntegerVector ends,
+                          IntegerVector rows, IntegerVector strands) {
+    if (starts.size() != ends.size() || starts.size() != rows.size() ||
+        starts.size() != strands.size())
+        stop("Genomic index vectors must have the same length");
+    XPtr<GenomicMap> map(new GenomicMap(), true);
+    map->reserve(starts.size());
+    for (R_xlen_t i = 0; i < starts.size(); ++i) {
+        if (starts[i] == NA_INTEGER || ends[i] == NA_INTEGER ||
+            starts[i] > ends[i])
+            stop("Genomic coordinates must be non-missing valid integer ranges");
+        map->add(starts[i], ends[i], GenomicFeature{rows[i], strands[i]});
+    }
+    map->build();
+    return map;
+}
+
+// [[Rcpp::export]]
+SEXP query_genomic_index(SEXP container, IntegerVector starts,
+                         IntegerVector ends, IntegerVector strands,
+                         bool ignore_strand, bool count_only) {
+    if (TYPEOF(container) != EXTPTRSXP || !R_ExternalPtrAddr(container))
+        stop("Invalid genomic index pointer; recreate maps after loading saved R objects");
+    XPtr<GenomicMap> map(container);
+    if (starts.size() != ends.size() || starts.size() != strands.size())
+        stop("Genomic query vectors must have the same length");
+    if (count_only) {
+        IntegerVector counts(starts.size());
+        for (R_xlen_t i = 0; i < starts.size(); ++i) {
+            if (ignore_strand || strands[i] == 3) {
+                counts[i] = map->count(starts[i], ends[i]);
+            } else {
+                int count = 0;
+                for (size_t k : map->search_idxs(starts[i], ends[i])) {
+                    const auto& feature = map->data[k];
+                    if (feature.strand == 3 || feature.strand == strands[i])
+                        ++count;
+                }
+                counts[i] = count;
+            }
+        }
+        return counts;
+    }
+    List results(starts.size());
+    std::vector<int> rows;
+    for (R_xlen_t i = 0; i < starts.size(); ++i) {
+        rows.clear();
+        for (size_t k : map->search_idxs(starts[i], ends[i])) {
+            const auto& feature = map->data[k];
+            if (ignore_strand || strands[i] == 3 || feature.strand == 3 ||
+                feature.strand == strands[i])
+                rows.push_back(feature.row);
+        }
+        results[i] = wrap(rows);
+    }
+    return results;
+}

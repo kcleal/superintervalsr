@@ -28,7 +28,7 @@ The original ranges, sequence information, names and metadata are retained.
 \describe{
 \item{\code{ranges}}{The original GRanges, in input order.}
 
-\item{\code{index}}{Internal per-sequence and per-strand indexes. Do not edit slots;
+\item{\code{index}}{Internal per-sequence indexes. Do not edit slots;
 construct a new object when the subject ranges change.}
 }}
 

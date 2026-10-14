@@ -29,8 +29,8 @@ SuperIntervals.
 Queries involving zero-width ranges, a non-default gap or overlap
 threshold,
 or a type other than \code{"any"} delegate to GenomicRanges to preserve its
-semantics. The object stores up to three indexes per sequence, trading
-memory for repeated-query speed. Query functions assume the indexes are
+semantics. The object stores one index per sequence, with strand filtering
+performed in C++. Query functions assume the indexes are
 current; do not alter the slots after construction.
 
 Like IntervalMap, the indexes contain external pointers. Save

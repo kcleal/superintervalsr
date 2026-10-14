@@ -8,7 +8,7 @@
 #'
 #' @param x,object An indexed genomic map.
 #' @slot ranges The original GRanges, in input order.
-#' @slot index Internal per-sequence and per-strand indexes. Do not edit slots;
+#' @slot index Internal per-sequence indexes. Do not edit slots;
 #'   construct a new object when the subject ranges change.
 #' @return The S4 class stores indexed GRanges. Its length method returns an
 #'   integer feature count; show prints a summary and returns invisible NULL.
@@ -39,8 +39,8 @@ methods::setClass("SuperIntervalMap",
 #'   Queries involving zero-width ranges, a non-default gap or overlap
 #' threshold,
 #'   or a type other than `"any"` delegate to GenomicRanges to preserve its
-#'   semantics. The object stores up to three indexes per sequence, trading
-#'   memory for repeated-query speed. Query functions assume the indexes are
+#'   semantics. The object stores one index per sequence, with strand filtering
+#'   performed in C++. Query functions assume the indexes are
 #'   current; do not alter the slots after construction.
 #'
 #'   Like IntervalMap, the indexes contain external pointers. Save
@@ -65,17 +65,12 @@ SuperIntervalMap <- function(x) {
     # enter the closed-interval index.
     rows <- which(GenomicRanges::width(x) > 0L)
     by_sequence <- split(rows, as.character(GenomicRanges::seqnames(x))[rows])
-    strands <- as.character(GenomicRanges::strand(x))
+    # GenomicRanges strand levels are +, -, * (codes 1, 2, 3).
+    strands <- as.integer(GenomicRanges::strand(x))
     starts <- GenomicRanges::start(x)
     ends <- GenomicRanges::end(x)
-    make_index <- function(ids) {
-        map <- IntervalMap(starts[ids], ends = ends[ids], values = ids)
-        list(map = map, rows = as.integer(unlist(get_all_values(map))))
-    }
     index <- lapply(by_sequence, function(ids) {
-        list(all = make_index(ids),
-                plus = make_index(ids[strands[ids] != "-"]),
-                minus = make_index(ids[strands[ids] != "+"]))
+        create_genomic_index(starts[ids], ends[ids], ids, strands[ids])
     })
     attr(index, "zero.width") <- any(GenomicRanges::width(x) == 0L)
     methods::new("SuperIntervalMap", ranges = x, index = index)
@@ -89,33 +84,24 @@ SuperIntervalMap <- function(x) {
     }
     by_sequence <- split(seq_along(query),
                             as.character(GenomicRanges::seqnames(query)))
-    strands <- as.character(GenomicRanges::strand(query))
+    strands <- as.integer(GenomicRanges::strand(query))
     starts <- GenomicRanges::start(query)
     ends <- GenomicRanges::end(query)
     counts <- integer(length(query))
     names(counts) <- names(query)
     query_hits <- subject_hits <- list()
     for (seqname in names(by_sequence)) {
-        indexes <- subject@index[[seqname]]
-        if (is.null(indexes)) next
-        ids <- by_sequence[[seqname]]
-        groups <- if (ignore.strand) list(all = ids) else {
-            list(plus = ids[strands[ids] == "+"],
-                    minus = ids[strands[ids] == "-"],
-                    all = ids[strands[ids] == "*"])
-        }
-        for (group in names(groups)) {
-            qi <- groups[[group]]
-            if (!length(qi)) next
-            index <- indexes[[group]]
-            if (count.only) {
-                counts[qi] <- count_batch(index$map, starts[qi], ends[qi])
-            } else {
-                found <- search_idxs_batch(index$map, starts[qi], ends[qi])
-                query_hits[[length(query_hits) + 1L]] <- rep(qi, lengths(found))
-                subject_hits[[length(subject_hits) + 1L]] <-
-                    index$rows[unlist(found, use.names = FALSE)]
-            }
+        index <- subject@index[[seqname]]
+        if (is.null(index)) next
+        qi <- by_sequence[[seqname]]
+        found <- query_genomic_index(index, starts[qi], ends[qi], strands[qi],
+                                    ignore.strand, count.only)
+        if (count.only) {
+            counts[qi] <- found
+        } else {
+            query_hits[[length(query_hits) + 1L]] <- rep(qi, lengths(found))
+            subject_hits[[length(subject_hits) + 1L]] <-
+                unlist(found, use.names = FALSE)
         }
     }
     if (count.only) return(counts)

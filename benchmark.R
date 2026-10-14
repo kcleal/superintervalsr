@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-# benchmark.R - SuperIntervals-r vs IRanges (NCLS algorithm)
+# benchmark.R - SuperIntervals-r vs IRanges (NCList algorithm)
 
 suppressPackageStartupMessages({
   library(superintervalsr)
@@ -7,7 +7,7 @@ suppressPackageStartupMessages({
   library(microbenchmark)
 })
 
-cat("SuperIntervals vs IRanges (NCLS) Benchmark\n")
+cat("SuperIntervals vs IRanges (NCList) Benchmark\n")
 cat("===========================================\n")
 
 
@@ -30,7 +30,7 @@ create_test_intervals <- function(n, max_pos = 1000000, min_width = 100, max_wid
 # }
 
 create_superintervals <- function(intervals) {
-  IntervalMap.from_vectors(intervals$starts, intervals$ends, seq_along(intervals$starts))
+  IntervalMap(intervals$starts, intervals$ends, seq_along(intervals$starts))
 }
 
 create_iranges <- function(intervals) {
@@ -299,7 +299,7 @@ for (size in dataset_sizes) {
   cat("  Complete!\n\n")
 }
 
-cat("BENCHMARK RESULTS: SuperIntervals vs IRanges (NCLS)\n")
+cat("BENCHMARK RESULTS: SuperIntervals vs IRanges (NCList)\n")
 cat("====================================================\n\n")
 
 cat("0. VALIDATION SUMMARY\n")
@@ -386,7 +386,7 @@ if (all_validations_passed) {
     }
   }
 
-  cat("Performance vs IRanges (NCLS algorithm):\n")
+  cat("Performance vs IRanges (NCList algorithm):\n")
   cat(sprintf("- Overlap counting: %.1fx faster\n", mean(all_count_speedups)))
   cat(sprintf("- Overlap finding:  %.1fx faster\n", mean(all_find_speedups)))
 

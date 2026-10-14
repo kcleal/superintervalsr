@@ -14,11 +14,13 @@ search_idxs.batch(x, starts, ends)
 \item{ends}{Integer vector of query end positions (inclusive)}
 }
 \value{
-List of integer vectors, where each element contains the 1-based indices
+List of integer vectors, where each element contains the 1-based
+indices
   of intervals that overlap with the corresponding query range
 }
 \description{
-Search for indices of overlapping intervals for multiple query ranges simultaneously.
+Search for indices of overlapping intervals for multiple query ranges
+simultaneously.
 This is more efficient than calling search_idxs multiple times.
 }
 \examples{

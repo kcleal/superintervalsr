@@ -1,94 +1,66 @@
+// R wrapper maintenance assisted by OpenAI Codex (October 2026).
 #include <Rcpp.h>
-#include "superintervals.hpp"
+#include "../inst/include/superintervals.hpp"
 
 using namespace Rcpp;
 using namespace si;
 
-// Helper functions for SEXP reference management
+// Each stored occurrence owns one preserved reference, including result maps.
 inline void preserve_sexp(SEXP value) {
-    if (value != R_NilValue) {
-        R_PreserveObject(value);
-    }
+    if (value != R_NilValue) R_PreserveObject(value);
 }
-
 inline void release_sexp(SEXP value) {
-    if (value != R_NilValue) {
-        R_ReleaseObject(value);
-    }
+    if (value != R_NilValue) R_ReleaseObject(value);
 }
-
-// Custom deleter for XPtr that handles SEXP cleanup
 void cleanup_intervalmap(IntervalMap<int, SEXP>* ptr) {
-//    if (ptr) {
-        // Release all SEXP references before destruction
-        for (const SEXP& value : ptr->data) {
-            release_sexp(value);
-        }
-        delete ptr;
-//    }
-}
-
-// Deleter for IntervalMaps whose values are already protected elsewhere
-// (e.g. set-operation results).  Releases each unique SEXP once.
-void cleanup_intervalmap_unique(IntervalMap<int, SEXP>* ptr) {
-    if (!ptr) {
-        return;
-    }
-    std::vector<SEXP> vals = ptr->data;
-    std::sort(vals.begin(), vals.end());
-    auto last = std::unique(vals.begin(), vals.end());
-    for (auto it = vals.begin(); it != last; ++it) {
-        release_sexp(*it);
-    }
+    if (!ptr) return;
+    for (SEXP value : ptr->data) release_sexp(value);
     delete ptr;
 }
+using MapPtr = XPtr<IntervalMap<int, SEXP>, PreserveStorage,
+                    cleanup_intervalmap>;
 
-// Preserve each unique non-NULL SEXP in an IntervalMap once.
-void preserve_unique_values(IntervalMap<int, SEXP>* ptr) {
-    if (!ptr) {
-        return;
+MapPtr checked_map(SEXP container) {
+    if (TYPEOF(container) != EXTPTRSXP || !R_ExternalPtrAddr(container)) {
+        stop("Invalid IntervalMap pointer; recreate maps after loading saved R objects");
     }
-    std::vector<SEXP> vals = ptr->data;
-    std::sort(vals.begin(), vals.end());
-    auto last = std::unique(vals.begin(), vals.end());
-    for (auto it = vals.begin(); it != last; ++it) {
-        preserve_sexp(*it);
-    }
+    return MapPtr(container);
 }
-
-// Wrap a newly allocated IntervalMap XPtr with caches and the unique-value deleter.
+void preserve_values(IntervalMap<int, SEXP>* ptr) {
+    for (SEXP value : ptr->data) preserve_sexp(value);
+}
 SEXP wrap_new_intervalmap(IntervalMap<int, SEXP>* ptr) {
-    auto deleter = cleanup_intervalmap_unique;
-    XPtr<IntervalMap<int, SEXP>> main_ptr(ptr, deleter);
-
-    std::vector<SEXP>* value_cache = new std::vector<SEXP>();
-    XPtr<std::vector<SEXP>> value_cache_ptr(value_cache, true);
+    MapPtr main_ptr(ptr, true);
+    XPtr<std::vector<SEXP>> value_cache_ptr(new std::vector<SEXP>(), true);
     main_ptr.attr("value_cache") = value_cache_ptr;
-
-    std::vector<size_t>* idx_cache = new std::vector<size_t>();
-    XPtr<std::vector<size_t>> idx_cache_ptr(idx_cache, true);
+    XPtr<std::vector<size_t>> idx_cache_ptr(new std::vector<size_t>(), true);
     main_ptr.attr("idx_cache") = idx_cache_ptr;
-
     return main_ptr;
+}
+// Widen arithmetic for operations that use end + 1 or signed resizing.
+// Query maps retain 32-bit coordinates and their SIMD counting implementation.
+IntervalMap<int64_t, SEXP> wide_map(const IntervalMap<int, SEXP>& src, bool indexed = false) {
+    IntervalMap<int64_t, SEXP> out;
+    out.reserve(src.starts.size());
+    for (size_t k = 0; k < src.starts.size(); ++k)
+        out.add(src.starts[k], src.ends[k], src.data[k]);
+    if (indexed) out.build();
+    return out;
+}
+SEXP wrap_wide_map(const IntervalMap<int64_t, SEXP>& src) {
+    auto out = new IntervalMap<int, SEXP>();
+    out->reserve(src.starts.size());
+    for (size_t k = 0; k < src.starts.size(); ++k)
+        out->add(static_cast<int>(src.starts[k]),
+                 static_cast<int>(src.ends[k]), src.data[k]);
+    preserve_values(out);
+    return wrap_new_intervalmap(out);
 }
 
 // [[Rcpp::export]]
 SEXP create_intervalmap() {
-    IntervalMap<int, SEXP>* ptr = new IntervalMap<int, SEXP>();
-    //XPtr<IntervalMap<int, SEXP>> main_ptr(ptr, cleanup_intervalmap);
-    auto deleter = cleanup_intervalmap;
-    XPtr<IntervalMap<int, SEXP>> main_ptr(ptr, deleter);
-
-    // Create a cached search vectors and attach it to the XPtr as attributes
-    std::vector<SEXP>* value_cache = new std::vector<SEXP>();
-    XPtr<std::vector<SEXP>> value_cache_ptr(value_cache, true);
-    main_ptr.attr("value_cache") = value_cache_ptr;
-
-    std::vector<size_t>* idx_cache = new std::vector<size_t>();
-    XPtr<std::vector<size_t>> idx_cache_ptr(idx_cache, true);
-    main_ptr.attr("idx_cache") = idx_cache_ptr;
-
-    return main_ptr;
+    Shield<SEXP> out(wrap_new_intervalmap(new IntervalMap<int, SEXP>()));
+    return out;
 }
 
 // [[Rcpp::export]]
@@ -110,24 +82,13 @@ SEXP create_intervalmap_from_vectors(IntegerVector starts, IntegerVector ends, L
     }
     ptr->build();  // Auto-build for convenience
 
-    //XPtr<IntervalMap<int, SEXP>> main_ptr(ptr, cleanup_intervalmap);
-    auto deleter = cleanup_intervalmap;
-    XPtr<IntervalMap<int, SEXP>> main_ptr(ptr, deleter);
-
-    std::vector<SEXP>* value_cache = new std::vector<SEXP>();
-    XPtr<std::vector<SEXP>> value_cache_ptr(value_cache, true);
-    main_ptr.attr("value_cache") = value_cache_ptr;
-
-    std::vector<size_t>* idx_cache = new std::vector<size_t>();
-    XPtr<std::vector<size_t>> idx_cache_ptr(idx_cache, true);
-    main_ptr.attr("idx_cache") = idx_cache_ptr;
-
-    return main_ptr;
+    Shield<SEXP> out(wrap_new_intervalmap(ptr));
+    return out;
 }
 
 // [[Rcpp::export]]
 void add_interval(SEXP container, int start, int end, SEXP value = R_NilValue) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
 
     // Preserve the SEXP reference
     preserve_sexp(value);
@@ -138,13 +99,13 @@ void add_interval(SEXP container, int start, int end, SEXP value = R_NilValue) {
 
 // [[Rcpp::export]]
 void build_index(SEXP container) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
     si->build();
 }
 
 // [[Rcpp::export]]
 List get_interval_at(SEXP container, int r_index) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
 
     // Convert R's 1-based to C++'s 0-based
     int cpp_index = r_index - 1;
@@ -166,7 +127,7 @@ List get_interval_at(SEXP container, int r_index) {
 
 // [[Rcpp::export]]
 int get_start_at(SEXP container, int r_index) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
 
     // Convert R's 1-based to C++'s 0-based
     int cpp_index = r_index - 1;
@@ -180,7 +141,7 @@ int get_start_at(SEXP container, int r_index) {
 
 // [[Rcpp::export]]
 int get_end_at(SEXP container, int r_index) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
 
     // Convert R's 1-based to C++'s 0-based
     int cpp_index = r_index - 1;
@@ -194,7 +155,7 @@ int get_end_at(SEXP container, int r_index) {
 
 // [[Rcpp::export]]
 SEXP get_data_at(SEXP container, int r_index) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
 
     // Convert R's 1-based to C++'s 0-based
     int cpp_index = r_index - 1;
@@ -208,7 +169,7 @@ SEXP get_data_at(SEXP container, int r_index) {
 
 // [[Rcpp::export]]
 IntegerVector get_all_starts(SEXP container) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
     IntegerVector result(si->size());
 
     for (size_t i = 0; i < si->size(); ++i) {
@@ -220,7 +181,7 @@ IntegerVector get_all_starts(SEXP container) {
 
 // [[Rcpp::export]]
 IntegerVector get_all_ends(SEXP container) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
     IntegerVector result(si->size());
 
     for (size_t i = 0; i < si->size(); ++i) {
@@ -232,7 +193,7 @@ IntegerVector get_all_ends(SEXP container) {
 
 // [[Rcpp::export]]
 List get_all_values(SEXP container) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
     List result(si->size());
 
     for (size_t i = 0; i < si->size(); ++i) {
@@ -244,7 +205,7 @@ List get_all_values(SEXP container) {
 
 // [[Rcpp::export]]
 void clear_intervals(SEXP container) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
 
     // Release all SEXP references before clearing
     for (const SEXP& value : si->data) {
@@ -252,23 +213,24 @@ void clear_intervals(SEXP container) {
     }
 
     si->clear();
+    si->start_sorted = si->end_sorted = true;
 }
 
 // [[Rcpp::export]]
 void reserve_intervals(SEXP container, int n) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
     si->reserve(n);
 }
 
 // [[Rcpp::export]]
 int get_size(SEXP container) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
     return si->size();
 }
 
 // [[Rcpp::export]]
 bool cpp_has_overlaps(SEXP container, int start, int end) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
     return si->has_overlaps(start, end);
 }
 
@@ -278,7 +240,7 @@ LogicalVector has_overlaps_batch(SEXP container, IntegerVector starts, IntegerVe
         stop("starts and ends must have the same length");
     }
 
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
     LogicalVector results(starts.size());
 
     for (int i = 0; i < starts.size(); ++i) {
@@ -290,13 +252,13 @@ LogicalVector has_overlaps_batch(SEXP container, IntegerVector starts, IntegerVe
 
 // [[Rcpp::export]]
 int count_overlaps(SEXP container, int start, int end) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
     return si->count(start, end);
 }
 
 // [[Rcpp::export]]
 List cpp_search_values(SEXP container, int start, int end) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
     XPtr<std::vector<SEXP>> cache_ptr(si.attr("value_cache"));
     std::vector<SEXP>& found_values = *cache_ptr;
     found_values.clear();
@@ -313,7 +275,7 @@ List cpp_search_values(SEXP container, int start, int end) {
 
 // [[Rcpp::export]]
 IntegerVector search_indexes(SEXP container, int start, int end) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
     XPtr<std::vector<size_t>> cache_ptr(si.attr("idx_cache"));
     std::vector<size_t>& found_indices = *cache_ptr;
     found_indices.clear();
@@ -330,7 +292,7 @@ IntegerVector search_indexes(SEXP container, int start, int end) {
 
 // [[Rcpp::export]]
 List cpp_search_keys(SEXP container, int start, int end) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
     XPtr<std::vector<size_t>> cache_ptr(si.attr("idx_cache"));
     std::vector<size_t>& found_indices = *cache_ptr;
     found_indices.clear();
@@ -361,7 +323,7 @@ List cpp_search_keys(SEXP container, int start, int end) {
 
 // [[Rcpp::export]]
 List cpp_search_items(SEXP container, int start, int end) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
     XPtr<std::vector<size_t>> cache_ptr(si.attr("idx_cache"));
     std::vector<size_t>& found_indices = *cache_ptr;
     found_indices.clear();
@@ -396,15 +358,17 @@ List cpp_search_items(SEXP container, int start, int end) {
 
 // [[Rcpp::export]]
 List get_coverage(SEXP container, int start, int end) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
 
-    std::pair<size_t, int> cov_result;
-    si->coverage(start, end, cov_result);
-
-    return List::create(
-        Named("count") = (int)cov_result.first,
-        Named("total_coverage") = cov_result.second
-    );
+    int count = 0;
+    double total = 0;
+    for (size_t k : si->search_idxs(start, end)) {
+        ++count;
+        total += static_cast<double>(std::min(si->ends[k], end)) -
+                 static_cast<double>(std::max(si->starts[k], start)) + 1;
+    }
+    return List::create(Named("count") = count,
+                        Named("total_coverage") = total);
 }
 
 // [[Rcpp::export]]
@@ -413,7 +377,7 @@ List search_idxs_batch(SEXP container, IntegerVector starts, IntegerVector ends)
         stop("starts and ends must have the same length");
     }
 
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
     XPtr<std::vector<size_t>> cache_ptr(si.attr("idx_cache"));
     std::vector<size_t>& found_indices = *cache_ptr;
 
@@ -439,7 +403,7 @@ IntegerVector count_batch(SEXP container, IntegerVector starts, IntegerVector en
         stop("starts and ends must have the same length");
     }
 
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
     IntegerVector results(starts.size());
 
     for (int i = 0; i < starts.size(); ++i) {
@@ -455,7 +419,7 @@ List search_values_batch(SEXP container, IntegerVector starts, IntegerVector end
         stop("starts and ends must have the same length");
     }
 
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
     XPtr<std::vector<SEXP>> cache_ptr(si.attr("value_cache"));
     std::vector<SEXP>& found_values = *cache_ptr;
 
@@ -476,7 +440,7 @@ List search_values_batch(SEXP container, IntegerVector starts, IntegerVector end
 }
 // [[Rcpp::export]]
 List cpp_search_point(SEXP container, int point) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
     XPtr<std::vector<SEXP>> cache_ptr(si.attr("value_cache"));
     std::vector<SEXP>& found_values = *cache_ptr;
     found_values.clear();
@@ -493,59 +457,53 @@ List cpp_search_point(SEXP container, int point) {
 
 // [[Rcpp::export]]
 SEXP cpp_merge_overlaps(SEXP container) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
     IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si->merge_overlaps());
-    preserve_unique_values(out);
+    preserve_values(out);
     return wrap_new_intervalmap(out);
 }
 
 // [[Rcpp::export]]
 SEXP cpp_union_with(SEXP container_a, SEXP container_b) {
-    XPtr<IntervalMap<int, SEXP>> si_a(container_a);
-    XPtr<IntervalMap<int, SEXP>> si_b(container_b);
+    auto si_a = checked_map(container_a);
+    auto si_b = checked_map(container_b);
     IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si_a->union_with(*si_b));
-    preserve_unique_values(out);
+    preserve_values(out);
     return wrap_new_intervalmap(out);
 }
 
 // [[Rcpp::export]]
 SEXP cpp_intersection(SEXP container_a, SEXP container_b) {
-    XPtr<IntervalMap<int, SEXP>> si_a(container_a);
-    XPtr<IntervalMap<int, SEXP>> si_b(container_b);
+    auto si_a = checked_map(container_a);
+    auto si_b = checked_map(container_b);
     IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si_a->intersection(*si_b));
-    preserve_unique_values(out);
+    preserve_values(out);
     return wrap_new_intervalmap(out);
 }
 
 // [[Rcpp::export]]
 SEXP cpp_difference(SEXP container_a, SEXP container_b) {
-    XPtr<IntervalMap<int, SEXP>> si_a(container_a);
-    XPtr<IntervalMap<int, SEXP>> si_b(container_b);
-    IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si_a->difference(*si_b));
-    preserve_unique_values(out);
-    return wrap_new_intervalmap(out);
+    auto si_a = checked_map(container_a);
+    auto si_b = checked_map(container_b);
+    return wrap_wide_map(wide_map(*si_a).difference(wide_map(*si_b, true)));
 }
 
 // [[Rcpp::export]]
 SEXP cpp_symmetric_difference(SEXP container_a, SEXP container_b) {
-    XPtr<IntervalMap<int, SEXP>> si_a(container_a);
-    XPtr<IntervalMap<int, SEXP>> si_b(container_b);
-    IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si_a->symmetric_difference(*si_b));
-    preserve_unique_values(out);
-    return wrap_new_intervalmap(out);
+    auto si_a = checked_map(container_a);
+    auto si_b = checked_map(container_b);
+    return wrap_wide_map(wide_map(*si_a, true).symmetric_difference(wide_map(*si_b, true)));
 }
 
 // [[Rcpp::export]]
 SEXP cpp_gaps(SEXP container, int lo, int hi, SEXP fill = R_NilValue) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
-    IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si->gaps(lo, hi, fill));
-    preserve_unique_values(out);
-    return wrap_new_intervalmap(out);
+    auto si = checked_map(container);
+    return wrap_wide_map(wide_map(*si).gaps(lo, hi, fill));
 }
 
 // [[Rcpp::export]]
 SEXP cpp_span(SEXP container) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
 
     std::pair<int, int> result;
     bool ok = si->span(result);
@@ -562,24 +520,20 @@ SEXP cpp_span(SEXP container) {
 
 // [[Rcpp::export]]
 SEXP cpp_expand(SEXP container, int left, int right, int lo, int hi) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
-    IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si->expand(left, right, lo, hi));
-    preserve_unique_values(out);
-    return wrap_new_intervalmap(out);
+    auto si = checked_map(container);
+    return wrap_wide_map(wide_map(*si).expand(left, right, lo, hi));
 }
 
 // [[Rcpp::export]]
 SEXP cpp_flank(SEXP container, int left, int right, int lo, int hi) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
-    IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si->flank(left, right, lo, hi));
-    preserve_unique_values(out);
-    return wrap_new_intervalmap(out);
+    auto si = checked_map(container);
+    return wrap_wide_map(wide_map(*si).flank(left, right, lo, hi));
 }
 
 // [[Rcpp::export]]
 SEXP cpp_unique_intervals(SEXP container) {
-    XPtr<IntervalMap<int, SEXP>> si(container);
+    auto si = checked_map(container);
     IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si->unique());
-    preserve_unique_values(out);
+    preserve_values(out);
     return wrap_new_intervalmap(out);
 }

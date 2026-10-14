@@ -1,14 +1,56 @@
+# R wrapper maintenance assisted by OpenAI Codex (October 2026).
+# Internal validation: never silently truncate coordinates or accept R's NA sentinel.
+.integer_input <- function(x, scalar = FALSE) {
+    if (!is.numeric(x) || anyNA(x) || any(!is.finite(x)) ||
+            any(x != trunc(x)) || any(abs(x) > .Machine$integer.max) ||
+            (scalar && length(x) != 1L)) {
+        stop("Expected finite, non-missing whole numbers in the R integer range",
+            call. = FALSE)
+    }
+    as.integer(x)
+}
+.range_input <- function(start, end, scalar = TRUE) {
+    start <- .integer_input(start, scalar)
+    end <- .integer_input(end, scalar)
+    if (length(start) != length(end))
+        stop("starts and ends must have the same length", call. = FALSE)
+    if (any(start > end))
+        stop("start must be less than or equal to end", call. = FALSE)
+    invisible(NULL)
+}
+.map_input <- function(x) {
+    if (!inherits(x, "IntervalMap") || typeof(x) != "externalptr")
+        stop("x must be an IntervalMap", call. = FALSE)
+}
+
 #' @useDynLib superintervalsr, .registration=TRUE
 #' @importFrom Rcpp evalCpp
 NULL
 
 #' Create a new IntervalMap
 #'
-#' Creates a new IntervalMap object for storing and querying intervals efficiently.
-#' This function uses method dispatch to automatically handle different input types.
+#' Creates a new IntervalMap object for storing and querying intervals
+#' efficiently.
+#' This function uses method dispatch to automatically handle different
+#' input types.
 #'
-#' @param x Input object. Can be missing (creates empty map), GRanges, data.frame, or integer vector of starts
+#' @param x Input object. Can be missing (creates empty map), GRanges,
+#' data.frame, or integer vector of starts
 #' @param ... Additional arguments passed to specific methods
+#' @details Coordinates are closed (both endpoints inclusive) whole numbers in
+#' the R integer range, excluding NA. A map stores one coordinate space and
+#' ignores strand. Multi-sequence GRanges require an explicit `seqname` filter.
+#' Constructors build the index automatically. After `add()`, call `build()`
+#' before querying; queries do not check index state or validate coordinates.
+#' Query inputs must be valid whole-number ranges. Build sorts by start
+#' ascending, then end descending;
+#' indices refer to this internal order, not the original input row order.
+#' Query result order is unspecified. Store original row IDs as values when
+#' mapping hits back to input data. Mutation operates by reference, so
+#' assignment
+#' does not copy a map. External pointers cannot be restored with
+#' saveRDS/readRDS;
+#' save coordinates and values and recreate the map instead.
 #' @return An IntervalMap object
 #' @export
 #' @examples
@@ -27,151 +69,150 @@ NULL
 #' # Create from vectors
 #' im4 <- IntervalMap(c(1, 10), ends = c(5, 15), values = c("gene1", "gene2"))
 IntervalMap <- function(x, ...) {
-  if (missing(x)) {
-    IntervalMap.default()
-  } else {
-    UseMethod("IntervalMap")
-  }
+    if (missing(x)) {
+        IntervalMap.default()
+    } else {
+        UseMethod("IntervalMap")
+    }
 }
 
 #' @rdname IntervalMap
 #' @export
 IntervalMap.default <- function(x = NULL, ...) {
-  if (is.null(x)) {
-    structure(create_intervalmap(), class = "IntervalMap")
-  } else {
-    stop("Don't know how to create IntervalMap from object of class: ", class(x)[1])
-  }
+    if (is.null(x)) {
+        structure(create_intervalmap(), class = "IntervalMap")
+    } else {
+        stop("Don't know how to create IntervalMap from object of class: ", class(x)[1])
+    }
 }
 
 #' @rdname IntervalMap
-#' @param ends Integer vector of end positions (when x is integer vector of starts)
+#' @param ends Integer vector of end positions (when x is integer vector of
+#' starts)
 #' @param values Optional list of values to associate with each interval
 #' @export
 IntervalMap.integer <- function(x, ends, values = NULL, ...) {
-  # x is treated as starts vector
-  starts <- x
-  if (missing(ends)) {
-    stop("ends parameter is required when x is an integer vector of starts")
-  }
-  if (is.null(values)) {
-    values <- list()
-  }
-  im <- create_intervalmap_from_vectors(
-    as.integer(starts),
-    as.integer(ends),
-    as.list(values)
-  )
-  structure(im, class = "IntervalMap")
+    # x is treated as starts vector
+    starts <- x
+    if (missing(ends)) {
+        stop("ends parameter is required when x is an integer vector of starts")
+    }
+    if (is.null(values)) {
+        values <- list()
+    }
+    .range_input(starts, ends, scalar = FALSE)
+    im <- create_intervalmap_from_vectors(
+        .integer_input(starts),
+        .integer_input(ends),
+        as.list(values)
+    )
+    structure(im, class = "IntervalMap")
 }
 
 #' @rdname IntervalMap
-#' @param ends Integer vector of end positions (when x is numeric vector of starts)
+#' @param ends Integer vector of end positions (when x is numeric vector of
+#' starts)
 #' @param values Optional list of values to associate with each interval
 #' @export
 IntervalMap.numeric <- function(x, ends, values = NULL, ...) {
-  # x is treated as starts vector, convert to integer
-  starts <- as.integer(x)
-  if (missing(ends)) {
-    stop("ends parameter is required when x is a numeric vector of starts")
-  }
-  if (is.null(values)) {
-    values <- list()
-  }
-  im <- create_intervalmap_from_vectors(
-    starts,
-    as.integer(ends),
-    as.list(values)
-  )
-  structure(im, class = "IntervalMap")
+    IntervalMap.integer(x, ends = ends, values = values, ...)
 }
 
 #' @rdname IntervalMap
-#' @param value_column Name of column to use as values (default: use all as named list)
+#' @param value_column Name of column to use as values (default: use all as
+#' named list)
 #' @param seqname Optional chromosome name to filter to (e.g., "chr1")
 #' @export
 IntervalMap.GRanges <- function(x, value_column = NULL, seqname = NULL, ...) {
-  if (!requireNamespace("GenomicRanges", quietly = TRUE)) {
-    stop("GenomicRanges package required for this functionality")
-  }
-  if (!requireNamespace("S4Vectors", quietly = TRUE)) {
-    stop("S4Vectors package required for this functionality")
-  }
-
-  # Filter to specific chromosome if requested
-  if (!is.null(seqname)) {
-    x <- x[GenomicRanges::seqnames(x) == seqname]
-  }
-  starts <- GenomicRanges::start(x)
-  ends <- GenomicRanges::end(x)
-
-  if (!is.null(value_column)) {
-    if (!value_column %in% colnames(S4Vectors::mcols(x))) {
-      stop("Column '", value_column, "' not found in GRanges metadata")
+    if (!requireNamespace("GenomicRanges", quietly = TRUE)) {
+        stop("GenomicRanges package required for this functionality")
     }
-    values <- S4Vectors::mcols(x)[[value_column]]
-  } else if (ncol(S4Vectors::mcols(x)) > 0) {
-    # Convert each row to a named list (preserves all metadata)
-    mcols_df <- as.data.frame(S4Vectors::mcols(x))
-    values <- lapply(seq_len(nrow(mcols_df)), function(i) {
-      as.list(mcols_df[i, , drop = FALSE])
-    })
-  } else {
-    values <- list()
-  }
+    if (!requireNamespace("S4Vectors", quietly = TRUE)) {
+        stop("S4Vectors package required for this functionality")
+    }
 
-  im <- create_intervalmap_from_vectors(
-    as.integer(starts),
-    as.integer(ends),
-    as.list(values)
-  )
-  structure(im, class = "IntervalMap")
+    # Filter to specific chromosome if requested
+    if (!is.null(seqname)) {
+        x <- x[GenomicRanges::seqnames(x) == seqname]
+    }
+    if (length(unique(as.character(GenomicRanges::seqnames(x)))) > 1L) {
+        stop("IntervalMap stores one sequence; supply seqname for multi-sequence GRanges",
+            call. = FALSE)
+    }
+    starts <- GenomicRanges::start(x)
+    ends <- GenomicRanges::end(x)
+
+    if (!is.null(value_column)) {
+        if (!value_column %in% colnames(S4Vectors::mcols(x))) {
+            stop("Column '", value_column, "' not found in GRanges metadata")
+        }
+        values <- S4Vectors::mcols(x)[[value_column]]
+    } else if (ncol(S4Vectors::mcols(x)) > 0) {
+        # Convert each row to a named list (preserves all metadata)
+        mcols_df <- as.data.frame(S4Vectors::mcols(x))
+        values <- lapply(seq_len(nrow(mcols_df)), function(i) {
+            as.list(mcols_df[i, , drop = FALSE])
+        })
+    } else {
+        values <- list()
+    }
+
+    .range_input(starts, ends, scalar = FALSE)
+    im <- create_intervalmap_from_vectors(
+        .integer_input(starts),
+        .integer_input(ends),
+        as.list(values)
+    )
+    structure(im, class = "IntervalMap")
 }
 
 #' @rdname IntervalMap
 #' @param start_column Name of start column (default: "start")
 #' @param end_column Name of end column (default: "end")
-#' @param value_column Name of column to use as values (default: use all other columns as named list)
+#' @param value_column Name of column to use as values (default: use all
+#' other columns as named list)
 #' @export
 IntervalMap.data.frame <- function(x, start_column = "start", end_column = "end",
-                                  value_column = NULL, ...) {
-  if (!start_column %in% colnames(x)) {
-    stop("Start column '", start_column, "' not found")
-  }
-  if (!end_column %in% colnames(x)) {
-    stop("End column '", end_column, "' not found")
-  }
-  starts <- as.integer(x[[start_column]])
-  ends <- as.integer(x[[end_column]])
-
-  if (!is.null(value_column)) {
-    if (!value_column %in% colnames(x)) {
-      stop("Value column '", value_column, "' not found")
+                                    value_column = NULL, ...) {
+    if (!start_column %in% colnames(x)) {
+        stop("Start column '", start_column, "' not found")
     }
-    values <- x[[value_column]]
-  } else {
-    # Use all other columns as named lists
-    other_cols <- setdiff(colnames(x), c(start_column, end_column))
-    if (length(other_cols) > 0) {
-      values <- lapply(seq_len(nrow(x)), function(i) {
-        as.list(x[i, other_cols, drop = FALSE])
-      })
+    if (!end_column %in% colnames(x)) {
+        stop("End column '", end_column, "' not found")
+    }
+    starts <- .integer_input(x[[start_column]])
+    ends <- .integer_input(x[[end_column]])
+
+    if (!is.null(value_column)) {
+        if (!value_column %in% colnames(x)) {
+            stop("Value column '", value_column, "' not found")
+        }
+        values <- x[[value_column]]
     } else {
-      values <- list()
+        # Use all other columns as named lists
+        other_cols <- setdiff(colnames(x), c(start_column, end_column))
+        if (length(other_cols) > 0) {
+            values <- lapply(seq_len(nrow(x)), function(i) {
+                as.list(x[i, other_cols, drop = FALSE])
+            })
+        } else {
+            values <- list()
+        }
     }
-  }
 
-  im <- create_intervalmap_from_vectors(
-    starts,
-    ends,
-    as.list(values)
-  )
-  structure(im, class = "IntervalMap")
+    .range_input(starts, ends, scalar = FALSE)
+    im <- create_intervalmap_from_vectors(
+        starts,
+        ends,
+        as.list(values)
+    )
+    structure(im, class = "IntervalMap")
 }
 
 #' Convert IntervalMap items result back to GRanges
 #'
-#' Helper function to convert search_items results back to Bioconductor objects.
+#' Helper function to convert search_items results back to Bioconductor
+#' objects.
 #'
 #' @param items_result Result from search_items()
 #' @param seqname Chromosome name to assign (default: "chr1")
@@ -187,28 +228,28 @@ IntervalMap.data.frame <- function(x, start_column = "start", end_column = "end"
 #' gr <- as_granges(items, seqname = "chr1", valuename = "gene_id")
 #' print(gr)
 as_granges <- function(items_result, seqname = "chr1", valuename = "value") {
-  if (!requireNamespace("GenomicRanges", quietly = TRUE)) {
-    stop("GenomicRanges package required for this functionality")
-  }
-  if (!requireNamespace("IRanges", quietly = TRUE)) {
-    stop("IRanges package required for this functionality")
-  }
-  if (!requireNamespace("S4Vectors", quietly = TRUE)) {
-    stop("S4Vectors package required for this functionality")
-  }
+    if (!requireNamespace("GenomicRanges", quietly = TRUE)) {
+        stop("GenomicRanges package required for this functionality")
+    }
+    if (!requireNamespace("IRanges", quietly = TRUE)) {
+        stop("IRanges package required for this functionality")
+    }
+    if (!requireNamespace("S4Vectors", quietly = TRUE)) {
+        stop("S4Vectors package required for this functionality")
+    }
 
-  if (is.null(items_result$start) || length(items_result$start) == 0) {
-    return(GenomicRanges::GRanges())
-  }
-  gr <- GenomicRanges::GRanges(
-    seqnames = seqname,
-    ranges = IRanges::IRanges(start = items_result$start, end = items_result$end)
-  )
-  # Add values as metadata if present
-  if (!is.null(items_result$value) && length(items_result$value) > 0) {
-    S4Vectors::mcols(gr)[[valuename]] <- items_result$value
-  }
-  gr
+    if (is.null(items_result$start) || length(items_result$start) == 0) {
+        return(GenomicRanges::GRanges())
+    }
+    gr <- GenomicRanges::GRanges(
+        seqnames = seqname,
+        ranges = IRanges::IRanges(start = items_result$start, end = items_result$end)
+    )
+    # Add values as metadata if present
+    if (!is.null(items_result$value) && length(items_result$value) > 0) {
+        S4Vectors::mcols(gr)[[valuename]] <- items_result$value
+    }
+    gr
 }
 
 
@@ -218,7 +259,9 @@ as_granges <- function(items_result, seqname = "chr1", valuename = "value") {
 #' @return Number of intervals in the map
 #' @export
 length.IntervalMap <- function(x) {
-  get_size(x)
+    .map_input(x)
+
+    get_size(x)
 }
 
 #' Print method for IntervalMap
@@ -228,37 +271,39 @@ length.IntervalMap <- function(x) {
 #' @export
 #' @return Invisibly returns the IntervalMap object
 print.IntervalMap <- function(x, ...) {
-  n <- length(x)
-  cat("IntervalMap with", n, "intervals\n")
-  if (n > 0 && n <= 10) {
-    for (i in seq_len(n)) {
-      interval <- at(x, i)
-      cat(sprintf("  [%d] %d-%d", i, interval$start, interval$end))
-      if (!is.null(interval$value)) {
-        cat(sprintf(" -> %s", as.character(interval$value)))
-      }
-      cat("\n")
+    .map_input(x)
+
+    n <- length(x)
+    cat("IntervalMap with", n, "intervals\n")
+    if (n > 0 && n <= 10) {
+        for (i in seq_len(n)) {
+            interval <- at(x, i)
+            cat(sprintf("  [%d] %d-%d", i, interval$start, interval$end))
+            if (!is.null(interval$value)) {
+                cat(sprintf(" -> %s", paste(as.character(interval$value), collapse = ", ")))
+            }
+            cat("\n")
+        }
+    } else if (n > 10) {
+        for (i in seq_len(3)) {
+            interval <- at(x, i)
+            cat(sprintf("  [%d] %d-%d", i, interval$start, interval$end))
+            if (!is.null(interval$value)) {
+                cat(sprintf(" -> %s", paste(as.character(interval$value), collapse = ", ")))
+            }
+            cat("\n")
+        }
+        cat("  ...\n")
+        for (i in seq.int(from = n-2, to = n)) {
+            interval <- at(x, i)
+            cat(sprintf("  [%d] %d-%d", i, interval$start, interval$end))
+            if (!is.null(interval$value)) {
+                cat(sprintf(" -> %s", paste(as.character(interval$value), collapse = ", ")))
+            }
+            cat("\n")
+        }
     }
-  } else if (n > 10) {
-    for (i in seq_len(3)) {
-      interval <- at(x, i)
-      cat(sprintf("  [%d] %d-%d", i, interval$start, interval$end))
-      if (!is.null(interval$value)) {
-        cat(sprintf(" -> %s", as.character(interval$value)))
-      }
-      cat("\n")
-    }
-    cat("  ...\n")
-    for (i in seq.int(from = n-2, to = n)) {
-      interval <- at(x, i)
-      cat(sprintf("  [%d] %d-%d", i, interval$start, interval$end))
-      if (!is.null(interval$value)) {
-        cat(sprintf(" -> %s", as.character(interval$value)))
-      }
-      cat("\n")
-    }
-  }
-  invisible(x)
+    invisible(x)
 }
 
 #' Access interval at specific index
@@ -268,7 +313,9 @@ print.IntervalMap <- function(x, ...) {
 #' @return List with start, end, and value components
 #' @export
 `[.IntervalMap` <- function(x, i) {
-  at(x, i)
+    .map_input(x)
+
+    at(x, i)
 }
 
 #' Add an interval to the map
@@ -284,13 +331,18 @@ print.IntervalMap <- function(x, ...) {
 #' add(im, 1, 10, "gene1")
 #' add(im, 15, 25, "gene2")
 add <- function(x, start, end, value = NULL) {
-  add_interval(x, as.integer(start), as.integer(end), value)
-  invisible(x)
+    .map_input(x)
+    .range_input(start, end)
+
+    add_interval(x, .integer_input(start), .integer_input(end), value)
+    invisible(x)
 }
 
 #' Build index for efficient queries
 #'
 #' Must be called after adding intervals and before performing queries.
+#' Sorts by start ascending and end descending within tied starts.
+#' Accessor and search indices refer to this order.
 #'
 #' @param x IntervalMap object
 #' @return The IntervalMap object (invisibly)
@@ -300,8 +352,10 @@ add <- function(x, start, end, value = NULL) {
 #' add(im, 1, 10, "gene1")
 #' build(im)
 build <- function(x) {
-  build_index(x)
-  invisible(x)
+    .map_input(x)
+
+    build_index(x)
+    invisible(x)
 }
 
 #' Get interval at specific index
@@ -316,7 +370,10 @@ build <- function(x) {
 #' build(im)
 #' at(im, 1)
 at <- function(x, idx) {
-  get_interval_at(x, as.integer(idx))
+    .map_input(x)
+    .integer_input(idx, scalar = TRUE)
+
+    get_interval_at(x, .integer_input(idx))
 }
 
 #' Get start position at specific index
@@ -332,7 +389,10 @@ at <- function(x, idx) {
 #' build(im)
 #' starts_at(im, 1)  # Returns 1
 starts_at <- function(x, idx) {
-  get_start_at(x, as.integer(idx))
+    .map_input(x)
+    .integer_input(idx, scalar = TRUE)
+
+    get_start_at(x, .integer_input(idx))
 }
 
 #' Get end position at specific index
@@ -348,7 +408,10 @@ starts_at <- function(x, idx) {
 #' build(im)
 #' ends_at(im, 1)  # Returns 10
 ends_at <- function(x, idx) {
-  get_end_at(x, as.integer(idx))
+    .map_input(x)
+    .integer_input(idx, scalar = TRUE)
+
+    get_end_at(x, .integer_input(idx))
 }
 
 #' Get data at specific index
@@ -364,7 +427,10 @@ ends_at <- function(x, idx) {
 #' build(im)
 #' data_at(im, 1)  # Returns "gene1"
 data_at <- function(x, idx) {
-  get_data_at(x, as.integer(idx))
+    .map_input(x)
+    .integer_input(idx, scalar = TRUE)
+
+    get_data_at(x, .integer_input(idx))
 }
 
 #' Clear all intervals
@@ -378,8 +444,10 @@ data_at <- function(x, idx) {
 #' add(im, 1, 10, "gene1")
 #' clear(im)
 clear <- function(x) {
-  clear_intervals(x)
-  invisible(x)
+    .map_input(x)
+
+    clear_intervals(x)
+    invisible(x)
 }
 
 #' Reserve space for intervals
@@ -393,8 +461,12 @@ clear <- function(x) {
 #' im <- IntervalMap()
 #' reserve(im, 1000)  # Pre-allocate space for 1000 intervals
 reserve <- function(x, n) {
-  reserve_intervals(x, as.integer(n))
-  invisible(x)
+    .map_input(x)
+    .integer_input(n, scalar = TRUE)
+    if (n < 0) stop("n must be non-negative", call. = FALSE)
+
+    reserve_intervals(x, .integer_input(n))
+    invisible(x)
 }
 
 #' Get number of intervals
@@ -409,7 +481,9 @@ reserve <- function(x, n) {
 #' add(im, 20, 30, "gene2")
 #' size(im)  # Returns 2
 size <- function(x) {
-  get_size(x)
+    .map_input(x)
+
+    get_size(x)
 }
 
 #' Check if any intervals overlap with a range
@@ -425,7 +499,7 @@ size <- function(x) {
 #' build(im)
 #' has_overlaps(im, 5, 15)  # TRUE
 has_overlaps <- function(x, start, end) {
-  cpp_has_overlaps(x, as.integer(start), as.integer(end))
+    cpp_has_overlaps(x, as.integer(start), as.integer(end))
 }
 
 #' Count overlapping intervals
@@ -442,7 +516,7 @@ has_overlaps <- function(x, start, end) {
 #' build(im)
 #' count(im, 7, 12)  # 2
 count <- function(x, start, end) {
-  count_overlaps(x, as.integer(start), as.integer(end))
+    count_overlaps(x, as.integer(start), as.integer(end))
 }
 
 #' Count overlaps for multiple ranges
@@ -460,7 +534,7 @@ count <- function(x, start, end) {
 #' build(im)
 #' count.batch(im, c(7, 25), c(12, 35))  # c(2, 1)
 count.batch <- function(x, starts, ends) {
-  count_batch(x, as.integer(starts), as.integer(ends))
+    count_batch(x, as.integer(starts), as.integer(ends))
 }
 
 #' Search for values in overlapping intervals
@@ -477,7 +551,7 @@ count.batch <- function(x, starts, ends) {
 #' build(im)
 #' search_values(im, 7, 12)  # list("gene1", "gene2")
 search_values <- function(x, start, end) {
-  cpp_search_values(x, as.integer(start), as.integer(end))
+    cpp_search_values(x, as.integer(start), as.integer(end))
 }
 
 #' Search for indices of overlapping intervals
@@ -494,18 +568,20 @@ search_values <- function(x, start, end) {
 #' build(im)
 #' search_idxs(im, 7, 12)  # c(1, 2)
 search_idxs <- function(x, start, end) {
-  search_indexes(x, as.integer(start), as.integer(end))
+    search_indexes(x, as.integer(start), as.integer(end))
 }
 
 #' Batch search for indices
 #'
-#' Search for indices of overlapping intervals for multiple query ranges simultaneously.
+#' Search for indices of overlapping intervals for multiple query ranges
+#' simultaneously.
 #' This is more efficient than calling search_idxs multiple times.
 #'
 #' @param x IntervalMap object
 #' @param starts Integer vector of query start positions (inclusive)
 #' @param ends Integer vector of query end positions (inclusive)
-#' @return List of integer vectors, where each element contains the 1-based indices
+#' @return List of integer vectors, where each element contains the 1-based
+#' indices
 #'   of intervals that overlap with the corresponding query range
 #' @export
 #' @examples
@@ -519,7 +595,7 @@ search_idxs <- function(x, start, end) {
 #' result <- search_idxs.batch(im, c(7, 25), c(12, 35))
 #' # Returns list(c(1, 2), c(3))
 search_idxs.batch <- function(x, starts, ends) {
-    search_idxs_batch(x, as.integer(starts), as.integer(ends))
+        search_idxs_batch(x, as.integer(starts), as.integer(ends))
 }
 
 #' Search for keys (start, end pairs) of overlapping intervals
@@ -536,7 +612,7 @@ search_idxs.batch <- function(x, starts, ends) {
 #' build(im)
 #' search_keys(im, 7, 12)  # list(start=c(1,5), end=c(10,15))
 search_keys <- function(x, start, end) {
-  cpp_search_keys(x, as.integer(start), as.integer(end))
+    cpp_search_keys(x, as.integer(start), as.integer(end))
 }
 
 #' Search for complete items (start, end, value) of overlapping intervals
@@ -553,7 +629,7 @@ search_keys <- function(x, start, end) {
 #' build(im)
 #' search_items(im, 7, 12)
 search_items <- function(x, start, end) {
-  cpp_search_items(x, as.integer(start), as.integer(end))
+    cpp_search_items(x, as.integer(start), as.integer(end))
 }
 
 #' Get coverage statistics for a range
@@ -561,7 +637,10 @@ search_items <- function(x, start, end) {
 #' @param x IntervalMap object
 #' @param start Start of query range (inclusive)
 #' @param end End of query range (inclusive)
-#' @return List with count and total_coverage
+#' @details `total_coverage` sums the inclusive widths of each intersection
+#' with the query. Overlapping stored intervals are counted independently;
+#' this is not the width of their union or an IRanges coverage Rle.
+#' @return List with integer `count` and numeric `total_coverage`
 #' @export
 #' @examples
 #' im <- IntervalMap()
@@ -570,7 +649,7 @@ search_items <- function(x, start, end) {
 #' build(im)
 #' coverage(im, 1, 20)  # Returns list with coverage statistics
 coverage <- function(x, start, end) {
-  get_coverage(x, as.integer(start), as.integer(end))
+    get_coverage(x, as.integer(start), as.integer(end))
 }
 
 #' Search for values at a single point
@@ -588,13 +667,14 @@ coverage <- function(x, start, end) {
 #' build(im)
 #' search_point(im, 5)  # list("A", "B")
 search_point <- function(x, point) {
-  cpp_search_point(x, as.integer(point))
+    cpp_search_point(x, as.integer(point))
 }
 
 #' Merge overlapping intervals
 #'
 #' Returns a new IntervalMap where overlapping intervals are coalesced.
-#' The data value of the first interval in each merged group is kept.
+#' The data value of the first interval in coordinate order is kept.
+#' Adjacent intervals that do not overlap are not merged. Ties are unspecified.
 #'
 #' @param x IntervalMap object
 #' @return A new IntervalMap with merged intervals
@@ -604,15 +684,18 @@ search_point <- function(x, point) {
 #' merged <- merge_overlaps(im)
 #' length(merged)  # 1
 merge_overlaps <- function(x) {
-  im <- cpp_merge_overlaps(x)
-  build_index(im)
-  structure(im, class = "IntervalMap")
+    .map_input(x)
+
+    im <- cpp_merge_overlaps(x)
+    build_index(im)
+    structure(im, class = "IntervalMap")
 }
 
 #' Union of two interval sets
 #'
 #' Returns a new IntervalMap covering all regions covered by either input.
-#' The data value of the first interval in each merged group is kept.
+#' The data value of the first interval in coordinate order is kept.
+#' Adjacent intervals that do not overlap are not merged. Ties are unspecified.
 #'
 #' @param x IntervalMap object
 #' @param y IntervalMap object
@@ -623,16 +706,19 @@ merge_overlaps <- function(x) {
 #' b <- IntervalMap(c(5, 25), ends = c(15, 35), values = c("C", "D"))
 #' u <- union_with(a, b)
 union_with <- function(x, y) {
-  im <- cpp_union_with(x, y)
-  build_index(im)
-  structure(im, class = "IntervalMap")
+    .map_input(x)
+    .map_input(y)
+
+    im <- cpp_union_with(x, y)
+    build_index(im)
+    structure(im, class = "IntervalMap")
 }
 
 #' Intersection of two interval sets
 #'
 #' Returns a new IntervalMap of regions covered by both inputs.
 #' Output pieces are not coalesced; call `merge_overlaps()` on the result
-#' if a disjoint set is required.
+#' if a disjoint set is required. Each piece keeps the value from `x`.
 #'
 #' @param x IntervalMap object
 #' @param y IntervalMap object
@@ -643,9 +729,12 @@ union_with <- function(x, y) {
 #' b <- IntervalMap(c(5, 25), ends = c(15, 35), values = c("C", "D"))
 #' i <- intersection(a, b)
 intersection <- function(x, y) {
-  im <- cpp_intersection(x, y)
-  build_index(im)
-  structure(im, class = "IntervalMap")
+    .map_input(x)
+    .map_input(y)
+
+    im <- cpp_intersection(x, y)
+    build_index(im)
+    structure(im, class = "IntervalMap")
 }
 
 #' Difference of two interval sets
@@ -661,9 +750,12 @@ intersection <- function(x, y) {
 #' b <- IntervalMap(c(5, 25), ends = c(15, 35), values = c("C", "D"))
 #' d <- difference(a, b)
 difference <- function(x, y) {
-  im <- cpp_difference(x, y)
-  build_index(im)
-  structure(im, class = "IntervalMap")
+    .map_input(x)
+    .map_input(y)
+
+    im <- cpp_difference(x, y)
+    build_index(im)
+    structure(im, class = "IntervalMap")
 }
 
 #' Symmetric difference of two interval sets
@@ -679,9 +771,12 @@ difference <- function(x, y) {
 #' b <- IntervalMap(c(5, 25), ends = c(15, 35), values = c("C", "D"))
 #' sd <- symmetric_difference(a, b)
 symmetric_difference <- function(x, y) {
-  im <- cpp_symmetric_difference(x, y)
-  build_index(im)
-  structure(im, class = "IntervalMap")
+    .map_input(x)
+    .map_input(y)
+
+    im <- cpp_symmetric_difference(x, y)
+    build_index(im)
+    structure(im, class = "IntervalMap")
 }
 
 #' Find gaps within a range
@@ -699,9 +794,12 @@ symmetric_difference <- function(x, y) {
 #' im <- IntervalMap(c(1, 10), ends = c(5, 15), values = c("A", "B"))
 #' g <- gaps(im, 0, 20)
 gaps <- function(x, lo, hi, fill = NULL) {
-  im <- cpp_gaps(x, as.integer(lo), as.integer(hi), fill)
-  build_index(im)
-  structure(im, class = "IntervalMap")
+    .map_input(x)
+    .range_input(lo, hi)
+
+    im <- cpp_gaps(x, .integer_input(lo), .integer_input(hi), fill)
+    build_index(im)
+    structure(im, class = "IntervalMap")
 }
 
 #' Span of all intervals
@@ -715,7 +813,9 @@ gaps <- function(x, lo, hi, fill = NULL) {
 #' im <- IntervalMap(c(1, 10), ends = c(5, 20), values = c("A", "B"))
 #' span(im)  # list(start = 1, end = 20)
 span <- function(x) {
-  cpp_span(x)
+    .map_input(x)
+
+    cpp_span(x)
 }
 
 #' Expand each interval by fixed amounts
@@ -724,8 +824,10 @@ span <- function(x) {
 #' to `[lo, hi]`.  Intervals shrunk past themselves are dropped.
 #'
 #' @param x IntervalMap object
-#' @param left Amount to subtract from each start (extends to the left). May be negative.
-#' @param right Amount to add to each end (extends to the right). May be negative.
+#' @param left Amount to subtract from each start (extends to the left). May
+#' be negative.
+#' @param right Amount to add to each end (extends to the right). May be
+#' negative.
 #' @param lo Lower clamp (default is 0)
 #' @param hi Upper clamp (default is the maximum 32-bit integer)
 #' @return A new IntervalMap with expanded intervals
@@ -734,18 +836,24 @@ span <- function(x) {
 #' im <- IntervalMap(c(10, 50), ends = c(20, 60), values = c("A", "B"))
 #' expanded <- expand(im, 5, 5)
 expand <- function(x, left, right,
-                   lo = 0L, hi = 2147483647L) {
-  im <- cpp_expand(x, as.integer(left), as.integer(right),
-                   as.integer(lo), as.integer(hi))
-  build_index(im)
-  structure(im, class = "IntervalMap")
+                    lo = 0L, hi = 2147483647L) {
+    .map_input(x)
+    .range_input(lo, hi)
+    .integer_input(left, scalar = TRUE)
+    .integer_input(right, scalar = TRUE)
+
+    im <- cpp_expand(x, .integer_input(left), .integer_input(right),
+                    .integer_input(lo), .integer_input(hi))
+    build_index(im)
+    structure(im, class = "IntervalMap")
 }
 
 #' Create flanking intervals beside each interval
 #'
 #' Returns a new IntervalMap containing only the flanking intervals, not the
 #' originals.  Left flanks are `[start - left, start - 1]` and right flanks
-#' are `[end + 1, end + right]`.  Zero-width or out-of-range flanks are skipped.
+#' are `[end + 1, end + right]`.  Zero-width or out-of-range flanks are
+#' skipped.
 #'
 #' @param x IntervalMap object
 #' @param left Width of the left flank (0 = none)
@@ -758,17 +866,25 @@ expand <- function(x, left, right,
 #' im <- IntervalMap(c(10, 50), ends = c(20, 60), values = c("A", "B"))
 #' f <- flank(im, 5, 5)
 flank <- function(x, left, right,
-                  lo = 0L, hi = 2147483647L) {
-  im <- cpp_flank(x, as.integer(left), as.integer(right),
-                  as.integer(lo), as.integer(hi))
-  build_index(im)
-  structure(im, class = "IntervalMap")
+                    lo = 0L, hi = 2147483647L) {
+    .map_input(x)
+    .range_input(lo, hi)
+    .integer_input(left, scalar = TRUE)
+    .integer_input(right, scalar = TRUE)
+    if (left < 0 || right < 0)
+        stop("flank widths must be non-negative", call. = FALSE)
+
+    im <- cpp_flank(x, .integer_input(left), .integer_input(right),
+                    .integer_input(lo), .integer_input(hi))
+    build_index(im)
+    structure(im, class = "IntervalMap")
 }
 
 #' Remove duplicate intervals
 #'
 #' Returns a new IntervalMap keeping only one interval per distinct
-#' `(start, end)` coordinate pair.  The data value of the first occurrence is kept.
+#' `(start, end)` coordinate pair. One duplicate's data value is kept;
+#' the choice among tied duplicates is unspecified.
 #'
 #' @param x IntervalMap object
 #' @return A new IntervalMap with duplicates removed
@@ -778,7 +894,9 @@ flank <- function(x, left, right,
 #' u <- unique_intervals(im)
 #' length(u)  # 2
 unique_intervals <- function(x) {
-  im <- cpp_unique_intervals(x)
-  build_index(im)
-  structure(im, class = "IntervalMap")
+    .map_input(x)
+
+    im <- cpp_unique_intervals(x)
+    build_index(im)
+    structure(im, class = "IntervalMap")
 }

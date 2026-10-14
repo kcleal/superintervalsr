@@ -28,15 +28,18 @@ IntervalMap(x, ...)
 )
 }
 \arguments{
-\item{x}{Input object. Can be missing (creates empty map), GRanges, data.frame, or integer vector of starts}
+\item{x}{Input object. Can be missing (creates empty map), GRanges,
+data.frame, or integer vector of starts}
 
 \item{...}{Additional arguments passed to specific methods}
 
-\item{ends}{Integer vector of end positions (when x is numeric vector of starts)}
+\item{ends}{Integer vector of end positions (when x is numeric vector of
+starts)}
 
 \item{values}{Optional list of values to associate with each interval}
 
-\item{value_column}{Name of column to use as values (default: use all other columns as named list)}
+\item{value_column}{Name of column to use as values (default: use all
+other columns as named list)}
 
 \item{seqname}{Optional chromosome name to filter to (e.g., "chr1")}
 
@@ -48,8 +51,26 @@ IntervalMap(x, ...)
 An IntervalMap object
 }
 \description{
-Creates a new IntervalMap object for storing and querying intervals efficiently.
-This function uses method dispatch to automatically handle different input types.
+Creates a new IntervalMap object for storing and querying intervals
+efficiently.
+This function uses method dispatch to automatically handle different
+input types.
+}
+\details{
+Coordinates are closed (both endpoints inclusive) whole numbers in
+the R integer range, excluding NA. A map stores one coordinate space and
+ignores strand. Multi-sequence GRanges require an explicit `seqname` filter.
+Constructors build the index automatically. After `add()`, call `build()`
+before querying; queries do not check index state or validate coordinates.
+Query inputs must be valid whole-number ranges. Build sorts by start
+ascending, then end descending;
+indices refer to this internal order, not the original input row order.
+Query result order is unspecified. Store original row IDs as values when
+mapping hits back to input data. Mutation operates by reference, so
+assignment
+does not copy a map. External pointers cannot be restored with
+saveRDS/readRDS;
+save coordinates and values and recreate the map instead.
 }
 \examples{
 # Create empty IntervalMap

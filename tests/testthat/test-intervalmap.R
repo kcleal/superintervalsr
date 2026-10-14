@@ -591,8 +591,8 @@ test_that("symmetric_difference returns regions in exactly one set", {
   expect_s3_class(sd, "IntervalMap")
   expect_equal(length(sd), 2)
 
-  starts <- get_all_starts(sd)
-  ends <- get_all_ends(sd)
+  starts <- vapply(seq_len(length(sd)), function(i) starts_at(sd, i), integer(1))
+  ends <- vapply(seq_len(length(sd)), function(i) ends_at(sd, i), integer(1))
   expect_true(1 %in% starts)
   expect_true(11 %in% starts)
   expect_true(4 %in% ends)
@@ -658,8 +658,8 @@ test_that("flank creates flanking intervals", {
   expect_s3_class(f, "IntervalMap")
   expect_equal(length(f), 2)
 
-  starts <- get_all_starts(f)
-  ends <- get_all_ends(f)
+  starts <- vapply(seq_len(length(f)), function(i) starts_at(f, i), integer(1))
+  ends <- vapply(seq_len(length(f)), function(i) ends_at(f, i), integer(1))
   expect_true(8 %in% starts)
   expect_true(21 %in% starts)
   expect_true(9 %in% ends)

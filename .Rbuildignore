@@ -1,1 +1,8 @@
 ^\.idea$
+^\.DS_Store$
+^\.git.*$
+^benchmark\.R$
+^build\.sh$
+^superintervalsr_.*\.tar\.gz$
+^superintervalsr\.Rcheck$
+^BIOCONDUCTOR\.md$

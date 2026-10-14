@@ -14,6 +14,8 @@ The IntervalMap object (invisibly)
 }
 \description{
 Must be called after adding intervals and before performing queries.
+Sorts by start ascending and end descending within tied starts.
+Accessor and search indices refer to this order.
 }
 \examples{
 im <- IntervalMap()

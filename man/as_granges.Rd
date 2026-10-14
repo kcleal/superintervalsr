@@ -17,7 +17,8 @@ as_granges(items_result, seqname = "chr1", valuename = "value")
 GRanges object
 }
 \description{
-Helper function to convert search_items results back to Bioconductor objects.
+Helper function to convert search_items results back to Bioconductor
+objects.
 }
 \examples{
 # Create an IntervalMap and search for items

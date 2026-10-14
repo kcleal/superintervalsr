@@ -1,27 +1,12 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")"
 
-# SuperIntervals R Package Build Script
-
-set -e  # Exit on any error
-
-echo "=== Cleaning old build files ==="
-rm -f src/*.o src/*.so
-
-echo "=== Generating Rcpp exports ==="
-Rscript -e "library(Rcpp); compileAttributes('.')"
-
-echo "=== Updating documentation ==="
-Rscript -e "library(roxygen2); roxygenise()"
-
-echo "=== Building package ==="
+# Developer dependencies: Rcpp, roxygen2, testthat, knitr, rmarkdown, BiocCheck.
+Rscript -e 'Rcpp::compileAttributes("."); roxygen2::roxygenise(".")'
+Rscript -e 'testthat::test_local(".")'
 R CMD build .
-
-echo "=== Running R CMD check ==="
-TARBALL=$(ls -t superintervalsr_*.tar.gz | head -n1)
-R CMD check "$TARBALL" --no-manual
-
-echo "=== Build complete ==="
-echo "Package tarball: $TARBALL"
-
-echo "=== Installing ==="
-R CMD INSTALL .
+package_version=$(Rscript -e 'cat(read.dcf("DESCRIPTION")[1, "Version"])')
+tarball="superintervalsr_${package_version}.tar.gz"
+R CMD check --no-manual "$tarball"
+Rscript -e 'if (!requireNamespace("BiocCheck", quietly = TRUE)) stop("Install BiocCheck in your Bioconductor development library"); BiocCheck::BiocCheck(commandArgs(TRUE)[1])' "$tarball"

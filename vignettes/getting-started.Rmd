@@ -2,15 +2,15 @@
 title: "Getting Started with SuperIntervals"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Getting Started with SuperIntervals}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
+    %\VignetteIndexEntry{Getting Started with SuperIntervals}
+    %\VignetteEngine{knitr::rmarkdown}
+    %\VignetteEncoding{UTF-8}
 ---
 
 ```{r setup-knitr, include = FALSE}
 knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
+    collapse = TRUE,
+    comment = "#>"
 )
 ```
 
@@ -19,6 +19,12 @@ knitr::opts_chunk$set(
 SuperIntervals provides fast interval intersection queries.
 This is particularly useful for genomic analysis, time series data, and
 any application requiring efficient range-based lookups.
+
+Coordinates include both endpoints. Constructors require whole numbers in the
+R integer range, excluding missing values. Search indices refer to internal
+start-sorted order; hit order is unspecified. Maps mutate by reference and
+cannot be restored from serialized external pointers. Query functions assume
+valid inputs and a current index, without checking those conditions on each call.
 
 ## Basic Usage
 
@@ -31,8 +37,8 @@ library(superintervalsr)
 ```{r basic}
 # Create a new IntervalMap
 imap <- IntervalMap(c(10, 15, 30),
-                    ends = c(20, 25, 40),
-                    values = c("Gene A", "Gene B", "Gene C"))
+                        ends = c(20, 25, 40),
+                        values = c("Gene A", "Gene B", "Gene C"))
 ```
 
 Alternatively data can be added sequentially, followed by calling `build()`:
@@ -81,7 +87,7 @@ has_overlaps(imap, 50, 60)
 # Count overlapping intervals
 count(imap, 12, 18)
 
-# Get coverage statistics
+# Sum inclusive intersection widths (overlaps counted independently)
 coverage(imap, 10, 40)
 ```
 
@@ -100,6 +106,24 @@ ends_at(imap, 1)
 # Get just the value
 data_at(imap, 1)
 ```
+
+## Set operations
+
+All map-producing operations return already indexed maps:
+
+```{r operations}
+merged <- merge_overlaps(imap)
+search_keys(merged, 1, 50)
+gaps(merged, 1, 50)
+expand(imap, 2, 2)
+flank(imap, 2, 2)
+unique_intervals(imap)
+span(imap)
+```
+
+Adjacent intervals without an overlap remain separate when merging.
+Intersection and difference retain left-side values; merge and union select one
+representative value per merged region. Metadata ties are unspecified.
 
 ## Performance Tips
 

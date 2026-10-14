@@ -214,7 +214,8 @@ IntervalMap.data.frame <- function(x, start_column = "start", end_column = "end"
 #' Helper function to convert search_items results back to Bioconductor
 #' objects.
 #'
-#' @param items_result Result from search_items()
+#' @param items_result Result from search_items(), or a GenomicIntervalMap.
+#'   For an indexed genomic map, return its original GRanges with all metadata.
 #' @param seqname Chromosome name to assign (default: "chr1")
 #' @param valuename Value name to assign (default: "value")
 #' @return GRanges object
@@ -228,6 +229,9 @@ IntervalMap.data.frame <- function(x, start_column = "start", end_column = "end"
 #' gr <- as_granges(items, seqname = "chr1", valuename = "gene_id")
 #' print(gr)
 as_granges <- function(items_result, seqname = "chr1", valuename = "value") {
+    if (methods::is(items_result, "GenomicIntervalMap")) {
+        return(items_result@ranges)
+    }
     if (!requireNamespace("GenomicRanges", quietly = TRUE)) {
         stop("GenomicRanges package required for this functionality")
     }

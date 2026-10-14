@@ -59,8 +59,8 @@ input types.
 \details{
 Coordinates are closed (both endpoints inclusive) whole numbers in
 the R integer range, excluding NA. A map stores one coordinate space and
-ignores strand. Multi-sequence GRanges require an explicit `seqname` filter.
-Constructors build the index automatically. After `add()`, call `build()`
+ignores strand. Multi-sequence GRanges require an explicit \code{seqname} filter.
+Constructors build the index automatically. After \code{add()}, call \code{build()}
 before querying; queries do not check index state or validate coordinates.
 Query inputs must be valid whole-number ranges. Build sorts by start
 ascending, then end descending;

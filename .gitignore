@@ -5,3 +5,5 @@ src/*.so
 src/*.dll
 *.tar.gz
 *.Rcheck/
+*.BiocCheck/
+genomic-benchmark/

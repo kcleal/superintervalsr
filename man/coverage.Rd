@@ -14,13 +14,13 @@ coverage(x, start, end)
 \item{end}{End of query range (inclusive)}
 }
 \value{
-List with integer `count` and numeric `total_coverage`
+List with integer \code{count} and numeric \code{total_coverage}
 }
 \description{
 Get coverage statistics for a range
 }
 \details{
-`total_coverage` sums the inclusive widths of each intersection
+\code{total_coverage} sums the inclusive widths of each intersection
 with the query. Overlapping stored intervals are counted independently;
 this is not the width of their union or an IRanges coverage Rle.
 }

@@ -10,7 +10,7 @@ span(x)
 \item{x}{IntervalMap object}
 }
 \value{
-A list with `start` and `end`, or `NULL` if the map is empty
+A list with \code{start} and \code{end}, or \code{NULL} if the map is empty
 }
 \description{
 Returns the smallest interval enclosing every stored interval.

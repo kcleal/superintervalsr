@@ -22,8 +22,8 @@ A new IntervalMap containing the flank intervals
 }
 \description{
 Returns a new IntervalMap containing only the flanking intervals, not the
-originals.  Left flanks are `[start - left, start - 1]` and right flanks
-are `[end + 1, end + right]`.  Zero-width or out-of-range flanks are
+originals.  Left flanks are \verb{[start - left, start - 1]} and right flanks
+are \verb{[end + 1, end + right]}.  Zero-width or out-of-range flanks are
 skipped.
 }
 \examples{

@@ -15,7 +15,7 @@ difference(x, y)
 A new IntervalMap representing A \\ B
 }
 \description{
-Returns a new IntervalMap of regions in `x` that are not covered by `y`.
+Returns a new IntervalMap of regions in \code{x} that are not covered by \code{y}.
 }
 \examples{
 a <- IntervalMap(c(1, 20), ends = c(10, 30), values = c("A", "B"))

@@ -5,16 +5,9 @@
 using namespace Rcpp;
 using namespace si;
 
-// Each stored occurrence owns one preserved reference, including result maps.
-inline void preserve_sexp(SEXP value) {
-    if (value != R_NilValue) R_PreserveObject(value);
-}
-inline void release_sexp(SEXP value) {
-    if (value != R_NilValue) R_ReleaseObject(value);
-}
+// Metadata is rooted by an R list attached to the external pointer. This avoids
+// per-value R_PreserveObject/R_ReleaseObject calls and their global linked list.
 void cleanup_intervalmap(IntervalMap<int, SEXP>* ptr) {
-    if (!ptr) return;
-    for (SEXP value : ptr->data) release_sexp(value);
     delete ptr;
 }
 using MapPtr = XPtr<IntervalMap<int, SEXP>, PreserveStorage,
@@ -26,11 +19,11 @@ MapPtr checked_map(SEXP container) {
     }
     return MapPtr(container);
 }
-void preserve_values(IntervalMap<int, SEXP>* ptr) {
-    for (SEXP value : ptr->data) preserve_sexp(value);
-}
 SEXP wrap_new_intervalmap(IntervalMap<int, SEXP>* ptr) {
     MapPtr main_ptr(ptr, true);
+    List values(ptr->data.size());
+    for (size_t k = 0; k < ptr->data.size(); ++k) values[k] = ptr->data[k];
+    main_ptr.attr("value_storage") = values;
     XPtr<std::vector<SEXP>> value_cache_ptr(new std::vector<SEXP>(), true);
     main_ptr.attr("value_cache") = value_cache_ptr;
     XPtr<std::vector<size_t>> idx_cache_ptr(new std::vector<size_t>(), true);
@@ -53,7 +46,6 @@ SEXP wrap_wide_map(const IntervalMap<int64_t, SEXP>& src) {
     for (size_t k = 0; k < src.starts.size(); ++k)
         out->add(static_cast<int>(src.starts[k]),
                  static_cast<int>(src.ends[k]), src.data[k]);
-    preserve_values(out);
     return wrap_new_intervalmap(out);
 }
 
@@ -77,7 +69,6 @@ SEXP create_intervalmap_from_vectors(IntegerVector starts, IntegerVector ends, L
     ptr->reserve(starts.size());
     for (int i = 0; i < starts.size(); ++i) {
         SEXP value = (values.size() > 0) ? values[i] : R_NilValue;
-        preserve_sexp(value);
         ptr->add(starts[i], ends[i], value);
     }
     ptr->build();  // Auto-build for convenience
@@ -90,10 +81,17 @@ SEXP create_intervalmap_from_vectors(IntegerVector starts, IntegerVector ends, L
 void add_interval(SEXP container, int start, int end, SEXP value = R_NilValue) {
     auto si = checked_map(container);
 
-    // Preserve the SEXP reference
-    preserve_sexp(value);
-
-    // Add to the interval map - this is now a simple operation
+    // Grow the R-owned root list geometrically for incremental insertion.
+    List values(si.attr("value_storage"));
+    const size_t pos = si->data.size();
+    if (pos >= static_cast<size_t>(values.size())) {
+        List grown(std::max<size_t>(4, std::max(pos + 1,
+                          static_cast<size_t>(values.size()) * 2)));
+        for (R_xlen_t k = 0; k < values.size(); ++k) grown[k] = values[k];
+        si.attr("value_storage") = grown;
+        values = grown;
+    }
+    values[pos] = value;
     si->add(start, end, value);
 }
 
@@ -207,12 +205,8 @@ List get_all_values(SEXP container) {
 void clear_intervals(SEXP container) {
     auto si = checked_map(container);
 
-    // Release all SEXP references before clearing
-    for (const SEXP& value : si->data) {
-        release_sexp(value);
-    }
-
     si->clear();
+    si.attr("value_storage") = List(0);
     si->start_sorted = si->end_sorted = true;
 }
 
@@ -459,7 +453,6 @@ List cpp_search_point(SEXP container, int point) {
 SEXP cpp_merge_overlaps(SEXP container) {
     auto si = checked_map(container);
     IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si->merge_overlaps());
-    preserve_values(out);
     return wrap_new_intervalmap(out);
 }
 
@@ -468,7 +461,6 @@ SEXP cpp_union_with(SEXP container_a, SEXP container_b) {
     auto si_a = checked_map(container_a);
     auto si_b = checked_map(container_b);
     IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si_a->union_with(*si_b));
-    preserve_values(out);
     return wrap_new_intervalmap(out);
 }
 
@@ -477,7 +469,6 @@ SEXP cpp_intersection(SEXP container_a, SEXP container_b) {
     auto si_a = checked_map(container_a);
     auto si_b = checked_map(container_b);
     IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si_a->intersection(*si_b));
-    preserve_values(out);
     return wrap_new_intervalmap(out);
 }
 
@@ -534,6 +525,5 @@ SEXP cpp_flank(SEXP container, int left, int right, int lo, int hi) {
 SEXP cpp_unique_intervals(SEXP container) {
     auto si = checked_map(container);
     IntervalMap<int, SEXP>* out = new IntervalMap<int, SEXP>(si->unique());
-    preserve_values(out);
     return wrap_new_intervalmap(out);
 }

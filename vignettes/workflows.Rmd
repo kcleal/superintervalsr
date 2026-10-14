@@ -102,8 +102,69 @@ individual <- vapply(seq_along(peaks), function(i) {
 stopifnot(identical(individual, counts))
 ```
 
-## Session information
 
-```{r sessioninfo}
+## A real RNA-seq example: promoter overlaps in airway cells
+
+The `airway` experiment contains RNA-seq measurements from human airway smooth
+muscle cells treated with dexamethasone. Its SummarizedExperiment includes
+GRanges annotations and a count matrix. This example asks which annotated gene
+bodies intersect promoter windows for highly expressed genes. It preserves
+chromosome, strand, gene identifiers and expression summaries throughout.
+
+```{r airway-data, message=FALSE}
+data("airway", package = "airway")
+# The gene models are GRangesList exon annotations. Collapse each gene to its
+# genomic span and keep models mapping to one contiguous sequence/strand group.
+models <- SummarizedExperiment::rowRanges(airway)
+gene_spans <- range(models)
+single_span <- lengths(gene_spans) == 1L
+features <- unlist(gene_spans[single_span], use.names = FALSE)
+names(features) <- names(models)[single_span]
+mcols(features)$mean_count <-
+    rowMeans(SummarizedExperiment::assay(airway))[single_span]
+features <- features[width(features) > 0L]
+# Retain a small, reproducible subset of real annotations for this demonstration.
+features <- features[as.character(seqnames(features)) %in% c("1", "2")]
+stopifnot(length(features) > 0L)
+expressed <- features[mcols(features)$mean_count > 100]
+expressed <- head(expressed, 100L)
+promoter_windows <- promoters(expressed, upstream = 1000L, downstream = 100L)
+```
+
+Build the subject index once and reuse it. Unlike the low-level IntervalMap,
+GenomicIntervalMap accepts all chromosomes and handles strand matching. Hits
+address the original input rows, so annotations can be recovered directly.
+
+```{r airway-query}
+genomic_index <- GenomicIntervalMap(features)
+hits <- findOverlaps(promoter_windows, genomic_index, ignore.strand = TRUE)
+reference <- findOverlaps(promoter_windows, features, ignore.strand = TRUE)
+# Compare the query/subject pairs; the order within each query is unspecified.
+pairs <- function(x) sort(paste(queryHits(x), subjectHits(x)))
+stopifnot(identical(pairs(hits), pairs(reference)))
+stopifnot(identical(countOverlaps(promoter_windows, genomic_index),
+                    countOverlaps(promoter_windows, features)))
+annotated_features <- as_granges(genomic_index)[subjectHits(hits)]
+head(annotated_features, 3)
+```
+
+The result includes the source GRanges metadata, names, strand and seqinfo.
+For a stranded analysis leave `ignore.strand = FALSE` (the default); `"*"`
+strands have the same wildcard behavior as GenomicRanges. Alternative overlap
+types and thresholds delegate to GenomicRanges. Recreate the index after
+changing the subject ranges, and serialize the source GRanges rather than the
+external-pointer index.
+
+```{r airway-summary}
+annotation <- data.frame(
+    promoter_gene = names(expressed)[queryHits(hits)],
+    overlapping_gene = names(features)[subjectHits(hits)],
+    mean_count = mcols(annotated_features)$mean_count
+)
+# Exclude each promoter's own gene to inspect neighboring gene annotations.
+head(annotation[annotation$promoter_gene != annotation$overlapping_gene, ])
+```
+
+```{r final-sessioninfo}
 sessionInfo()
 ```

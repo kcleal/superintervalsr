@@ -6,3 +6,5 @@
 ^superintervalsr_.*\.tar\.gz$
 ^superintervalsr\.Rcheck$
 ^BIOCONDUCTOR\.md$
+^superintervalsr\.BiocCheck$
+^genomic-benchmark$

@@ -20,7 +20,7 @@ A new IntervalMap of gap intervals
 }
 \description{
 Returns uncovered regions within the supplied range as a new IntervalMap.
-Gap intervals are assigned the value given by `fill` (default `NULL`).
+Gap intervals are assigned the value given by \code{fill} (default \code{NULL}).
 }
 \examples{
 im <- IntervalMap(c(1, 10), ends = c(5, 15), values = c("A", "B"))

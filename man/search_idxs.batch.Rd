@@ -16,7 +16,7 @@ search_idxs.batch(x, starts, ends)
 \value{
 List of integer vectors, where each element contains the 1-based
 indices
-  of intervals that overlap with the corresponding query range
+of intervals that overlap with the corresponding query range
 }
 \description{
 Search for indices of overlapping intervals for multiple query ranges

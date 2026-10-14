@@ -16,8 +16,8 @@ A new IntervalMap representing the intersection
 }
 \description{
 Returns a new IntervalMap of regions covered by both inputs.
-Output pieces are not coalesced; call `merge_overlaps()` on the result
-if a disjoint set is required. Each piece keeps the value from `x`.
+Output pieces are not coalesced; call \code{merge_overlaps()} on the result
+if a disjoint set is required. Each piece keeps the value from \code{x}.
 }
 \examples{
 a <- IntervalMap(c(1, 20), ends = c(10, 30), values = c("A", "B"))

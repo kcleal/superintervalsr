@@ -51,17 +51,70 @@ back to source rows, store row IDs as values.
 
 ## Genomic ranges
 
-Each map represents one sequence and ignores strand. Filter explicitly when
-input contains multiple chromosomes; construct and query separate maps for each.
+Use the S4 `GenomicIntervalMap` adapter to index GRanges with multiple chromosomes,
+strand, sequence information and metadata. Build once and reuse the subject:
 
 ```r
 library(GenomicRanges)
 gr <- GRanges(c("chr1", "chr1", "chr2"),
               IRanges(c(20, 1, 1), c(30, 10, 10)),
+              strand = c("+", "*", "-"),
               gene_id = c("C", "A", "D"))
-im <- IntervalMap(gr, value_column = "gene_id", seqname = "chr1")
-hits <- superintervalsr::search_items(im, 5, 25)
-superintervalsr::as_granges(hits, seqname = "chr1", valuename = "gene_id")
+index <- GenomicIntervalMap(gr)
+query <- GRanges(c("chr1", "chr2"), IRanges(c(5, 3), c(25, 8)),
+                 strand = c("+", "-"))
+hits <- findOverlaps(query, index)
+countOverlaps(query, index)
+as_granges(index)[subjectHits(hits)]
+```
+
+Hits refer to original subject rows. Strand matching follows GenomicRanges,
+including wildcard `"*"`; use `ignore.strand = TRUE` to ignore it. Advanced overlap
+options and zero-width features use GenomicRanges directly. The genomic adapter
+uses up to three indexes per sequence to speed repeated queries. Reconstruct it
+after editing subject coordinates; save its original GRanges for serialization.
+The workflow vignette includes a real RNA-seq example using `airway` annotations.
+
+The low-level `IntervalMap(gr, seqname = "chr1")` interface still indexes one
+sequence and ignores strand. Its search indices address sorted map positions;
+store row IDs as values when mapping low-level hits to original input rows.
+
+## GRanges interface benchmarks
+
+On macOS ARM64 with R 4.6.1/Bioconductor 3.24 (14 October 2026), the
+chromosome- and strand-aware interface produced the same counts and hit pairs as
+GenomicRanges. The benchmark uses real airway gene spans and two synthetic
+subjects across 22 chromosomes, with 100, 1,000 and 10,000 promoter queries.
+Both strand-aware and strand-ignored queries are tested. Timings below are
+medians of five repetitions of ten calls; subject indexes are built once and
+construction time is recorded separately. Units are milliseconds per batch.
+
+| Subject | Operation | Queries | SuperIntervals | Prebuilt GNCList | GRanges |
+|---|---|---:|---:|---:|---:|
+| airway | countOverlaps | 10,000 | 4.2 | 10.8 | 17.4 |
+| airway | findOverlaps | 10,000 | 7.5 | 10.9 | 17.3 |
+| synthetic_10000 | countOverlaps | 10,000 | 3.5 | 7.2 | 7.8 |
+| synthetic_10000 | findOverlaps | 10,000 | 6.3 | 7.3 | 8.2 |
+| synthetic_100000 | countOverlaps | 10,000 | 3.8 | 15.0 | 18.6 |
+| synthetic_100000 | findOverlaps | 10,000 | 7.9 | 15.0 | 18.8 |
+
+For the 63,677 airway gene spans, the SuperIntervals genomic index took 56 ms
+to build, versus 17 ms for GNCList. For 100,000 synthetic features, the times
+were 85 ms and 20 ms. This favors reusing the index across batches: a single
+query can cost more overall once construction is included. These are observed
+timings on this machine and dataset; results vary with overlap density and
+hardware. Memory usage is not compared because ordinary R object-size tools do
+not account for the C++ index allocations.
+
+![GRanges query benchmark](inst/benchmarks/query-times.png)
+
+The [complete results](inst/benchmarks/queries.csv),
+[construction timings](inst/benchmarks/build.csv), and
+[session information](inst/benchmarks/session-info.txt) are included.
+To reproduce from the repository with the required vignette dependencies:
+
+```sh
+Rscript inst/scripts/benchmark-genomic.R genomic-benchmark
 ```
 
 ## Set operations

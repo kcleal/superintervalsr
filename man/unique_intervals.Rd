@@ -14,7 +14,7 @@ A new IntervalMap with duplicates removed
 }
 \description{
 Returns a new IntervalMap keeping only one interval per distinct
-`(start, end)` coordinate pair. One duplicate's data value is kept;
+\verb{(start, end)} coordinate pair. One duplicate's data value is kept;
 the choice among tied duplicates is unspecified.
 }
 \examples{

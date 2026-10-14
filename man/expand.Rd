@@ -24,7 +24,7 @@ A new IntervalMap with expanded intervals
 }
 \description{
 Grows (or shrinks) every interval by a fixed amount.  Results are clamped
-to `[lo, hi]`.  Intervals shrunk past themselves are dropped.
+to \verb{[lo, hi]}.  Intervals shrunk past themselves are dropped.
 }
 \examples{
 im <- IntervalMap(c(10, 50), ends = c(20, 60), values = c("A", "B"))

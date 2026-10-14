@@ -12,7 +12,7 @@ search_point(x, point)
 \item{point}{Position to query (inclusive)}
 }
 \value{
-List of values from intervals containing `point`
+List of values from intervals containing \code{point}
 }
 \description{
 Returns all values associated with intervals that contain the given point.

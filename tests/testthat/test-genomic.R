@@ -8,8 +8,8 @@ test_that("indexed genomic ranges retain original biological annotations", {
         IRanges::IRanges(c(5, 20, 1), c(10, 30, 10)),
         strand = c("-", "+", "*"), id = c("B", "C", "A"))
     names(subject) <- c("gene_B", "gene_C", "gene_A")
-    index <- GenomicIntervalMap(subject)
-    expect_s4_class(index, "GenomicIntervalMap")
+    index <- SuperIntervalMap(subject)
+    expect_s4_class(index, "SuperIntervalMap")
     expect_identical(as_granges(index), subject)
     expect_identical(length(index), length(subject))
     expect_output(show(index), "3 ranges on 2 indexed sequences")
@@ -24,7 +24,7 @@ test_that("indexed genomic ranges retain original biological annotations", {
             ignore.strand = ignore), GenomicRanges::countOverlaps(query,
             subject, ignore.strand = ignore))
     }
-    expect_error(GenomicIntervalMap(1:3), "GRanges")
+    expect_error(SuperIntervalMap(1:3), "GRanges")
 })
 
 test_that("chromosome, strand, duplicates and unsorted input match GenomicRanges", {
@@ -39,7 +39,7 @@ test_that("chromosome, strand, duplicates and unsorted input match GenomicRanges
     subject <- c(subject, subject[1:10])
     query <- make_ranges(100)
     names(query) <- paste0("query_", seq_along(query))
-    index <- GenomicIntervalMap(subject)
+    index <- SuperIntervalMap(subject)
     for (ignore in c(FALSE, TRUE)) {
         for (minoverlap in c(0L, 1L, 2L)) {
             actual <- IRanges::findOverlaps(query, index,
@@ -68,7 +68,7 @@ test_that("zero widths and advanced overlap options use standard semantics", {
         IRanges::IRanges(c(1, 10, 20), width = c(5, 0, 10)))
     query <- GenomicRanges::GRanges("chr1",
         IRanges::IRanges(c(5, 10, 15), width = c(0, 5, 10)))
-    index <- GenomicIntervalMap(subject)
+    index <- SuperIntervalMap(subject)
     for (type in c("any", "start", "end", "within", "equal")) {
         actual <- IRanges::findOverlaps(query, index, type = type)
         reference <- GenomicRanges::findOverlaps(query, subject, type = type)
@@ -80,8 +80,8 @@ test_that("zero widths and advanced overlap options use standard semantics", {
         hit_pairs(GenomicRanges::findOverlaps(query, subject, maxgap = 3L)))
     empty <- GenomicRanges::GRanges()
     expect_length(IRanges::findOverlaps(empty, index), 0)
-    expect_identical(IRanges::countOverlaps(query, GenomicIntervalMap(empty)),
+    expect_identical(IRanges::countOverlaps(query, SuperIntervalMap(empty)),
         integer(length(query)))
     expect_error(IRanges::countOverlaps(query,
-        GenomicIntervalMap(subject[1]), ignore.strand = NA), "ignore.strand")
+        SuperIntervalMap(subject[1]), ignore.strand = NA), "ignore.strand")
 })

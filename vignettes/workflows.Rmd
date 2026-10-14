@@ -132,11 +132,11 @@ promoter_windows <- promoters(expressed, upstream = 1000L, downstream = 100L)
 ```
 
 Build the subject index once and reuse it. Unlike the low-level IntervalMap,
-GenomicIntervalMap accepts all chromosomes and handles strand matching. Hits
+SuperIntervalMap accepts all chromosomes and handles strand matching. Hits
 address the original input rows, so annotations can be recovered directly.
 
 ```{r airway-query}
-genomic_index <- GenomicIntervalMap(features)
+genomic_index <- SuperIntervalMap(features)
 hits <- findOverlaps(promoter_windows, genomic_index, ignore.strand = TRUE)
 reference <- findOverlaps(promoter_windows, features, ignore.strand = TRUE)
 # Compare the query/subject pairs; the order within each query is unspecified.

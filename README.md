@@ -51,7 +51,7 @@ back to source rows, store row IDs as values.
 
 ## Genomic ranges
 
-Use the S4 `GenomicIntervalMap` adapter to index GRanges with multiple chromosomes,
+Use the S4 `SuperIntervalMap` adapter to index GRanges with multiple chromosomes,
 strand, sequence information and metadata. Build once and reuse the subject:
 
 ```r
@@ -60,7 +60,7 @@ gr <- GRanges(c("chr1", "chr1", "chr2"),
               IRanges(c(20, 1, 1), c(30, 10, 10)),
               strand = c("+", "*", "-"),
               gene_id = c("C", "A", "D"))
-index <- GenomicIntervalMap(gr)
+index <- SuperIntervalMap(gr)
 query <- GRanges(c("chr1", "chr2"), IRanges(c(5, 3), c(25, 8)),
                  strand = c("+", "-"))
 hits <- findOverlaps(query, index)

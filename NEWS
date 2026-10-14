@@ -1,8 +1,13 @@
+Changes in version 0.99.7
+
+* Rename the genomic class and constructor to SuperIntervalMap.
+* Update overlap methods, conversion, examples and benchmarks to the new name.
+
 Changes in version 0.99.6
 
 * Root metadata in an R-owned list to avoid expensive per-value preservation
   and cleanup for large indexes.
-* Add GenomicIntervalMap, an S4 genomic subject index that preserves source
+* Add SuperIntervalMap, an S4 genomic subject index that preserves source
   GRanges and supports chromosome-aware and strand-aware overlap methods.
 * Return Hits in original input row order and support standard GenomicRanges
   overlap options, with fallback for zero-width ranges and advanced options.

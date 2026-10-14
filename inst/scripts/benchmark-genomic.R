@@ -43,9 +43,9 @@ for (dataset in names(datasets)) {
     build_results[[length(build_results) + 1L]] <- data.frame(
         dataset = dataset, subjects = length(subject),
         SuperIntervals_seconds = median_time(
-            function() GenomicIntervalMap(subject), calls = 1L),
+            function() SuperIntervalMap(subject), calls = 1L),
         GNCList_seconds = median_time(function() GNCList(subject), calls = 1L))
-    index <- GenomicIntervalMap(subject)
+    index <- SuperIntervalMap(subject)
     reference <- GNCList(subject)
     for (n_query in c(100L, 1000L, 10000L)) {
         query <- promoters(subject[sample(seq_along(subject), n_query,

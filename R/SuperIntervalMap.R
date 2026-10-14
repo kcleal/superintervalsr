@@ -15,10 +15,10 @@
 #' @importFrom methods show
 #' @importClassesFrom GenomicRanges GRanges
 #' @importFrom IRanges findOverlaps countOverlaps
-#' @exportClass GenomicIntervalMap
-#' @name GenomicIntervalMap-class
-#' @seealso [GenomicIntervalMap()]
-methods::setClass("GenomicIntervalMap",
+#' @exportClass SuperIntervalMap
+#' @name SuperIntervalMap-class
+#' @seealso [SuperIntervalMap()]
+methods::setClass("SuperIntervalMap",
     slots = c(ranges = "GRanges", index = "list")
 )
 
@@ -27,7 +27,7 @@ methods::setClass("GenomicIntervalMap",
 #' @param x A GRanges containing subject features, possibly on multiple
 #' sequences
 #'   and strands. Coordinates, names, seqinfo and metadata are preserved.
-#' @return A GenomicIntervalMap S4 object for use as the subject of
+#' @return A SuperIntervalMap S4 object for use as the subject of
 #'   `findOverlaps()` and `countOverlaps()`. `as_granges()` retrieves the
 #' original
 #'   GRanges, and `length()` returns its number of features.
@@ -51,13 +51,13 @@ methods::setClass("GenomicIntervalMap",
 #' genes <- GRanges(c("chr1", "chr2", "chr1"),
 #'     IRanges(c(20, 1, 1), c(30, 10, 10)),
 #'     strand = c("+", "-", "*"), gene_id = c("C", "B", "A"))
-#' index <- GenomicIntervalMap(genes)
+#' index <- SuperIntervalMap(genes)
 #' query <- GRanges(c("chr1", "chr2"), IRanges(c(5, 5), c(25, 8)),
 #'     strand = c("+", "+"))
 #' findOverlaps(query, index)
 #' countOverlaps(query, index, ignore.strand = TRUE)
 #' as_granges(index)
-GenomicIntervalMap <- function(x) {
+SuperIntervalMap <- function(x) {
     if (!methods::is(x, "GRanges")) {
         stop("x must be a GRanges", call. = FALSE)
     }
@@ -78,7 +78,7 @@ GenomicIntervalMap <- function(x) {
                 minus = make_index(ids[strands[ids] != "+"]))
     })
     attr(index, "zero.width") <- any(GenomicRanges::width(x) == 0L)
-    methods::new("GenomicIntervalMap", ranges = x, index = index)
+    methods::new("SuperIntervalMap", ranges = x, index = index)
 }
 
 # Internal batch dispatch. No per-interval index-state checks are performed.
@@ -134,7 +134,7 @@ GenomicIntervalMap <- function(x) {
 #' Query an indexed genomic subject
 #'
 #' @param query A GRanges of query features.
-#' @param subject A GenomicIntervalMap constructed once from the subject
+#' @param subject A SuperIntervalMap constructed once from the subject
 #' GRanges.
 #' @param maxgap,minoverlap,type,select Overlap options, as in
 #'   [GenomicRanges::findOverlaps()].
@@ -143,18 +143,18 @@ GenomicIntervalMap <- function(x) {
 #'   input order, or a subject-index vector when `select` is not `"all"`.
 #'   `countOverlaps()` returns one integer count per query feature.
 #' @rdname genomic-overlaps
-#' @aliases findOverlaps,GRanges,GenomicIntervalMap-method
+#' @aliases findOverlaps,GRanges,SuperIntervalMap-method
 #' @export
 #' @examples
 #' library(GenomicRanges)
 #' subject <- GRanges(c("chr1", "chr2"), IRanges(c(1, 10), c(5, 20)))
 #' query <- GRanges(c("chr1", "chr2"), IRanges(c(3, 15), c(8, 18)))
-#' index <- GenomicIntervalMap(subject)
+#' index <- SuperIntervalMap(subject)
 #' hits <- findOverlaps(query, index)
 #' as_granges(index)[subjectHits(hits)]
 #' countOverlaps(query, index)
 methods::setMethod("findOverlaps",
-    signature(query = "GRanges", subject = "GenomicIntervalMap"),
+    signature(query = "GRanges", subject = "SuperIntervalMap"),
     function(query, subject, maxgap = -1L, minoverlap = 0L,
                 type = c("any", "start", "end", "within", "equal"),
                 select = c("all", "first", "last", "arbitrary"),
@@ -172,10 +172,10 @@ methods::setMethod("findOverlaps",
 )
 
 #' @rdname genomic-overlaps
-#' @aliases countOverlaps,GRanges,GenomicIntervalMap-method
+#' @aliases countOverlaps,GRanges,SuperIntervalMap-method
 #' @export
 methods::setMethod("countOverlaps",
-    signature(query = "GRanges", subject = "GenomicIntervalMap"),
+    signature(query = "GRanges", subject = "SuperIntervalMap"),
     function(query, subject, maxgap = -1L, minoverlap = 0L,
                 type = c("any", "start", "end", "within", "equal"),
                 ignore.strand = FALSE) {
@@ -189,15 +189,15 @@ methods::setMethod("countOverlaps",
     }
 )
 
-#' @rdname GenomicIntervalMap-class
+#' @rdname SuperIntervalMap-class
 #' @export
-methods::setMethod("length", "GenomicIntervalMap", function(x) {
+methods::setMethod("length", "SuperIntervalMap", function(x) {
     length(x@ranges)
 })
 
-#' @rdname GenomicIntervalMap-class
+#' @rdname SuperIntervalMap-class
 #' @export
-methods::setMethod("show", "GenomicIntervalMap", function(object) {
-    cat("GenomicIntervalMap with", length(object), "ranges on",
+methods::setMethod("show", "SuperIntervalMap", function(object) {
+    cat("SuperIntervalMap with", length(object), "ranges on",
         length(object@index), "indexed sequences\n")
 })

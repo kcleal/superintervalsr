@@ -7,7 +7,7 @@
 as_granges(items_result, seqname = "chr1", valuename = "value")
 }
 \arguments{
-\item{items_result}{Result from search_items(), or a GenomicIntervalMap.
+\item{items_result}{Result from search_items(), or a SuperIntervalMap.
 For an indexed genomic map, return its original GRanges with all metadata.}
 
 \item{seqname}{Chromosome name to assign (default: "chr1")}
